@@ -60,6 +60,7 @@
       font-weight: bold;
       color: #333;
       text-align: center;
+      word-break: break-all;
     }
     .flash-toggle {
       background: #28a745;
@@ -70,11 +71,6 @@
       border-radius: 5px;
       cursor: pointer;
       text-align: center;
-    }
-    a {
-      word-break: break-all;
-      color: #007bff;
-      text-decoration: underline;
     }
   </style>
 </head>
@@ -111,7 +107,7 @@
   </section>
 
   <script>
-    const contractABI = [/* INSERT YOUR ABI HERE */];
+    const contractABI = [/* INSERT YOUR CONTRACT ABI HERE */];
     const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
     let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
@@ -197,8 +193,8 @@
               document.getElementById("verify-btn").click();
 
               const resultDiv = document.getElementById("qr-result");
-              if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
-                resultDiv.innerHTML = `🔗 QR Detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
+              if (/^https?:\/\//.test(decodedText)) {
+                resultDiv.innerHTML = `🔗 QR Detected: <br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>`;
               } else {
                 resultDiv.textContent = `📦 QR Detected: ${decodedText}`;
               }
