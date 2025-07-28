@@ -79,22 +79,6 @@
   <p id="walletAddress"></p>
 
   <section>
-    <h2>Register New Product</h2>
-    <form id="registration-form">
-      <label for="reg-productId">Product ID</label>
-      <input type="text" id="reg-productId" required />
-      <label for="reg-name">Product Name</label>
-      <input type="text" id="reg-name" required />
-      <label for="reg-manufacturer">Manufacturer</label>
-      <input type="text" id="reg-manufacturer" required />
-      <label for="reg-manufactureDate">Manufacture Date</label>
-      <input type="date" id="reg-manufactureDate" required />
-      <button type="submit" id="register-btn">Register Product</button>
-    </form>
-    <div id="registration-result"></div>
-  </section>
-
-  <section>
     <h2>Verify Product</h2>
     <label for="verify-productId">Product ID</label>
     <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
@@ -106,12 +90,13 @@
   </section>
 
   <script>
+    // Replace with your ABI and contract address
     const contractABI = [/* INSERT YOUR ABI HERE */];
     const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
     let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
 
-    // Connect wallet
+    // Connect to wallet
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
         try {
@@ -129,29 +114,6 @@
       }
     });
 
-    // Register product
-    document.getElementById("registration-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const productId = document.getElementById('reg-productId').value;
-      const name = document.getElementById('reg-name').value;
-      const manufacturer = document.getElementById('reg-manufacturer').value;
-      const date = document.getElementById('reg-manufactureDate').value;
-      const timestamp = Math.floor(new Date(date).getTime() / 1000);
-      const resultDiv = document.getElementById("registration-result");
-      resultDiv.textContent = "";
-
-      try {
-        await contract.methods.registerProduct(productId, name, manufacturer, timestamp).send({ from: userAccount });
-        resultDiv.textContent = "✅ Product Registered!";
-        resultDiv.className = "success";
-        e.target.reset();
-      } catch (err) {
-        console.error(err);
-        resultDiv.textContent = "❌ Registration failed.";
-        resultDiv.className = "error";
-      }
-    });
-
     // Verify product
     document.getElementById("verify-btn").addEventListener("click", async () => {
       const pid = document.getElementById("verify-productId").value.trim();
@@ -162,7 +124,14 @@
       try {
         const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
         if (res[0]) {
-          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
+          const readableDate = new Date(res[3] * 1000).toLocaleDateString();
+          resultDiv.innerHTML = `
+            ✅ <strong>Valid Product</strong><br>
+            <strong>Product ID:</strong> ${pid}<br>
+            <strong>Name:</strong> ${res[1]}<br>
+            <strong>Manufacturer:</strong> ${res[2]}<br>
+            <strong>Manufacture Date:</strong> ${readableDate}
+          `;
           resultDiv.className = "success";
         } else {
           resultDiv.textContent = "❌ Product not found!";
@@ -177,13 +146,11 @@
     // Start QR scanner
     async function startScanner() {
       scanner = new Html5Qrcode("qr-reader");
-
       try {
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length) {
           const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
           currentCameraId = backCam.id;
-
           await scanner.start(
             { deviceId: { exact: currentCameraId } },
             { fps: 10, qrbox: 250 },
@@ -192,11 +159,10 @@
               document.getElementById("verify-productId").value = decodedText;
               document.getElementById("verify-btn").click();
             },
-            (error) => {
-              console.warn("QR Scan Error:", error);
+            (err) => {
+              console.warn("QR Scan Error:", err);
             }
           );
-
           const capabilities = await scanner.getRunningTrackCapabilities();
           if (capabilities.torch) {
             document.getElementById("flash-toggle").style.display = "block";
