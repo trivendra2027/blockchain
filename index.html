@@ -1,35 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blockchain Product Registry</title>
-  <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    input, button {
-      padding: 8px;
-      margin: 5px;
-    }
+    body { font-family: Arial; padding: 20px; background: #f3f3f3; }
+    input, button { padding: 10px; margin: 5px 0; width: 100%; }
+    .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+    h2 { text-align: center; }
   </style>
 </head>
 <body>
-  <h2>Product Registration</h2>
-  <input id="productId" placeholder="Product ID" />
-  <input id="name" placeholder="Product Name" />
-  <input id="manufacturer" placeholder="Manufacturer" />
-  <button onclick="registerProduct()">Register Product</button>
+  <div class="container">
+    <h2>Register Product</h2>
+    <input type="text" id="productId" placeholder="Product ID" />
+    <input type="text" id="name" placeholder="Product Name" />
+    <input type="text" id="manufacturer" placeholder="Manufacturer" />
+    <input type="number" id="mDate" placeholder="Manufacture Date (UNIX timestamp)" />
+    <button onclick="registerProduct()">Register</button>
 
-  <h2>Product Verification</h2>
-  <input id="verifyId" placeholder="Product ID to verify" />
-  <button onclick="verifyProduct()">Verify Product</button>
-  <p id="verificationResult"></p>
+    <h2>Verify Product</h2>
+    <input type="text" id="verifyId" placeholder="Product ID to Verify" />
+    <button onclick="verifyProduct()">Verify</button>
+
+    <pre id="output"></pre>
+  </div>
 
   <script>
-    const contractAddress = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B";
+    // ✅ Copy these from Remix after deployment
+    const contractAddress = "YOUR_DEPLOYED_CONTRACT_ADDRESS_HERE";
+
     const contractABI = [
       {
         "anonymous": false,
@@ -68,49 +67,48 @@
       }
     ];
 
-    let web3;
-    let contract;
-    let account;
+    let contractInstance;
 
-    window.addEventListener("load", async () => {
-      if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const accounts = await web3.eth.getAccounts();
-        account = accounts[0];
-        contract = new web3.eth.Contract(contractABI, contractAddress);
-      } else {
-        alert("MetaMask not detected");
+    async function getContractInstance() {
+      // Use Remix VM — manually assign web3 (via Remix’s JSVM console or load here if needed)
+      if (typeof web3 === 'undefined') {
+        alert('Please open this in Remix HTML preview or add web3 support.');
+        return;
       }
-    });
+
+      const Contract = new web3.eth.Contract(contractABI, contractAddress);
+      contractInstance = Contract;
+
+      const accounts = await web3.eth.getAccounts();
+      return accounts[0];
+    }
 
     async function registerProduct() {
-      const productId = document.getElementById("productId").value;
-      const name = document.getElementById("name").value;
-      const manufacturer = document.getElementById("manufacturer").value;
-      const mDate = Math.floor(Date.now() / 1000); // UNIX timestamp
+      const account = await getContractInstance();
+      const id = document.getElementById('productId').value;
+      const name = document.getElementById('name').value;
+      const mfg = document.getElementById('manufacturer').value;
+      const date = document.getElementById('mDate').value;
 
       try {
-        await contract.methods.registerProduct(productId, name, manufacturer, mDate)
-          .send({ from: account });
-        alert("Product registered successfully!");
-      } catch (error) {
-        alert("Registration failed: " + error.message);
+        await contractInstance.methods.registerProduct(id, name, mfg, date).send({ from: account });
+        document.getElementById('output').textContent = "✅ Product Registered!";
+      } catch (err) {
+        document.getElementById('output').textContent = "❌ Error: " + err.message;
       }
     }
 
     async function verifyProduct() {
-      const verifyId = document.getElementById("verifyId").value;
+      const id = document.getElementById('verifyId').value;
       try {
-        const result = await contract.methods.verifyProduct(verifyId).call();
+        const result = await contractInstance.methods.verifyProduct(id).call();
         if (result.exists) {
-          document.getElementById("verificationResult").innerText =
-            `✔ Product Exists\nName: ${result.name}\nManufacturer: ${result.manufacturer}`;
+          document.getElementById('output').textContent = `✅ Product Found\nName: ${result.name}\nManufacturer: ${result.manufacturer}`;
         } else {
-          document.getElementById("verificationResult").innerText = "✖ Product Not Found";
+          document.getElementById('output').textContent = "❌ Product not found!";
         }
-      } catch (error) {
-        document.getElementById("verificationResult").innerText = "Error verifying product";
+      } catch (err) {
+        document.getElementById('output').textContent = "❌ Error: " + err.message;
       }
     }
   </script>
