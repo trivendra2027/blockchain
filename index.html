@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Continuous QR/Barcode Scanner</title>
+  <title>Live Barcode Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
@@ -63,16 +63,22 @@
     };
 
     function onScanSuccess(decodedText, decodedResult) {
-      if (decodedText === lastScanned) return; // avoid repeat
+      if (decodedText === lastScanned) return; // avoid duplicate
       lastScanned = decodedText;
 
-      console.log(`Scanned: ${decodedText}`);
+      console.log(`✅ Scanned: ${decodedText}`);
       verifyInput.value = decodedText;
 
-      // Optionally: trigger auto-verification or UI update
+      // You could auto-trigger blockchain product verification here
     }
 
-    // Start camera (rear/back camera preferred)
+    function onScanFailure(error) {
+      // Optional: log failed attempt
+      console.warn(`❌ Scan failed:`, error);
+      // Don't stop scanning on failure — default behavior already does this
+    }
+
+    // Start with back camera if available
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
         const backCamera = devices.find(device => device.label.toLowerCase().includes("back"))
@@ -81,7 +87,8 @@
         html5QrCode.start(
           { deviceId: { exact: backCamera.id } },
           config,
-          onScanSuccess
+          onScanSuccess,
+          onScanFailure  // This makes it retry continuously
         ).catch(err => {
           console.error("Camera start error:", err);
         });
