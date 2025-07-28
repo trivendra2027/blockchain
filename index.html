@@ -71,6 +71,11 @@
       cursor: pointer;
       text-align: center;
     }
+    a {
+      word-break: break-all;
+      color: #007bff;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -106,7 +111,6 @@
   </section>
 
   <script>
-    // 🧩 Replace this with your real ABI
     const contractABI = [/* INSERT YOUR ABI HERE */];
     const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
@@ -123,10 +127,10 @@
           document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           document.getElementById("verify-btn").disabled = false;
         } catch (err) {
-          alert("❌ Wallet connection denied.");
+          alert("User denied wallet connection.");
         }
       } else {
-        alert("❗ Please install MetaMask.");
+        alert("Please install MetaMask.");
       }
     });
 
@@ -163,19 +167,13 @@
       try {
         const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
         if (res[0]) {
-          const readableDate = new Date(res[3] * 1000).toLocaleDateString();
-          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br>
-            <strong>Product ID:</strong> ${pid}<br>
-            <strong>Name:</strong> ${res[1]}<br>
-            <strong>Manufacturer:</strong> ${res[2]}<br>
-            <strong>Manufacture Date:</strong> ${readableDate}`;
+          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
           resultDiv.className = "success";
         } else {
           resultDiv.textContent = "❌ Product not found!";
           resultDiv.className = "error";
         }
       } catch (err) {
-        console.error(err);
         resultDiv.textContent = "❌ Error verifying product.";
         resultDiv.className = "error";
       }
@@ -195,9 +193,15 @@
             { deviceId: { exact: currentCameraId } },
             { fps: 10, qrbox: 250 },
             (decodedText) => {
-              document.getElementById("qr-result").innerText = `📦 QR Detected: ${decodedText}`;
               document.getElementById("verify-productId").value = decodedText;
               document.getElementById("verify-btn").click();
+
+              const resultDiv = document.getElementById("qr-result");
+              if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
+                resultDiv.innerHTML = `🔗 QR Detected: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
+              } else {
+                resultDiv.textContent = `📦 QR Detected: ${decodedText}`;
+              }
             },
             (error) => {
               console.warn("QR Scan Error:", error);
@@ -217,7 +221,7 @@
       }
     }
 
-    // Flashlight toggle
+    // Toggle flashlight
     document.getElementById("flash-toggle").addEventListener("click", async () => {
       if (scanner && currentCameraId) {
         flashOn = !flashOn;
@@ -226,7 +230,7 @@
             advanced: [{ torch: flashOn }]
           });
         } catch (err) {
-          alert("⚠️ Flashlight not supported.");
+          alert("⚠️ Flashlight not supported on this device.");
         }
       }
     });
