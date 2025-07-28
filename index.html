@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Product Registry & Verification with Barcode Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Web3.js for blockchain interaction -->
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+  <!-- Html5-qrcode for barcode scanning -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2f7;
+      margin: 0; padding: 20px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    section {
+      background: #fff;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #444;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+    input:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      margin-top: 20px;
+    }
+    button:disabled {
+      background-color: #9ec8ff;
+      cursor: not-allowed;
+    }
+    #qr-reader {
+      width: 100%;
+      margin-top: 10px;
+    }
+    #verification-result, #registration-result {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    #verification-result.success {
+      color: green;
+      background-color: #e0f5e9;
+    }
+    #verification-result.error {
+      color: red;
+      background-color: #fcebea;
+    }
+    #registration-result.success {
+      color: green;
+      background-color: #e0f5e9;
+    }
+    #registration-result.error {
+      color: red;
+      background-color: #fcebea;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Blockchain Product Registry</h1>
+
+  <section>
+    <h2>Register New Product</h2>
+    <form id="registration-form">
+      <label for="reg-productId">Product ID</label>
+      <input type="text" id="reg-productId" required placeholder="Unique Product ID (e.g., PROD123456)" />
+
+      <label for="reg-name">Product Name</label>
+      <input type="text" id="reg-name" required placeholder="Product Name" />
+
+      <label for="reg-manufacturer">Manufacturer</label>
+      <input type="text" id="reg-manufacturer" required placeholder="Manufacturer Name" />
+
+      <label for="reg-manufactureDate">Manufacture Date</label>
+      <input type="date" id="reg-manufactureDate" required />
+
+      <button type="submit" id="register-btn">Register Product</button>
+    </form>
+    <div id="registration-result"></div>
+  </section>
+
+  <section>
+    <h2>Verify Product</h2>
+    <label for="verify-productId">Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" autocomplete="off" />
+    <button id="verify-btn" disabled>Verify Product</button>
+
+    <div id="verification-result"></div>
+
+    <div id="qr-reader"></div>
+  </section>
+
+  <script>
+    // Paste your contract ABI here
+    const contractABI = [
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
+          { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
+          { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" }
+        ],
+        "name": "ProductRegistered",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" },
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "manufacturer", "type": "string" },
+          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
+        ],
+        "name": "registerProduct",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" }
+        ],
+        "name": "verifyProduct",
+        "outputs": [
+          { "internalType": "bool", "name": "", "type": "bool" },
+          { "internalType": "string", "name": "", "type": "string" },
+          { "internalType": "string", "name": "", "type": "string" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+
+    // Your deployed contract address here:
+    const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
+
+    let web3, contract, userAccount;
+
+    const regForm = document.getElementById('registration-form');
+    const registerBtn = document.getElementById('register-btn');
+    const registrationResult = document.getElementById('registration-result');
+
+    const verifyInput = document.getElementById('verify-productId');
+    const verifyBtn = document.getElementById('verify-btn');
+    const verificationResult = document.getElementById('verification-result');
+
+    async function initializeWeb3() {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const accounts = await web3.eth.getAccounts();
+          userAccount = accounts[0];
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          verifyBtn.disabled = false;
+          console.log("Connected with account:", userAccount);
+        } catch (err) {
+          alert("Please allow access to MetaMask.");
+          console.error(err);
+        }
+      } else {
+        alert("MetaMask is not installed. Please install it to use this app.");
+      }
+    }
+
+    // Product registration handler
+    regForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      registrationResult.textContent = "";
+      registerBtn.disabled = true;
+      registerBtn.textContent = "Registering...";
+
+      const productId = document.getElementById('reg-productId').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const manufacturer = document.getElementById('reg-manufacturer').value.trim();
+      const manufactureDateStr = document.getElementById('reg-manufactureDate').value;
+
+      if (!productId || !name || !manufacturer || !manufactureDateStr) {
+        registrationResult.textContent = "Please fill all fields.";
+        registerBtn.disabled = false;
+        registerBtn.textContent = "Register Product";
+        return;
+      }
+
+      const mDateTimestamp = Math.floor(new Date(manufactureDateStr).getTime() / 1000);
+
+      try {
+        await contract.methods.registerProduct(productId, name, manufacturer, mDateTimestamp)
+          .send({ from: userAccount });
+
+        registrationResult.textContent = "Product registered successfully!";
+        registrationResult.className = "success";
+
+        // Clear inputs
+        regForm.reset();
+      } catch (err) {
+        console.error(err);
+        registrationResult.textContent = "Failed to register product. See console.";
+        registrationResult.className = "error";
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.textContent = "Register Product";
+      }
+    });
+
+    // Product verification handler
+    verifyBtn.addEventListener('click', async () => {
+      const productId = verifyInput.value.trim();
+      verificationResult.textContent = "";
+      verificationResult.className = "";
+      if (!productId) {
+        alert("Please enter or scan a product ID.");
+        return;
+      }
+      try {
+        const result = await contract.methods.verifyProduct(productId).call({ from: userAccount });
+        if(result[0]) {
+          verificationResult.innerHTML = <span style="color:green;">✔️ Authentic product found!</span><br>
+            <strong>Name:</strong> ${escapeHtml(result[1])}<br>
+            <strong>Manufacturer:</strong> ${escapeHtml(result[2])};
+          verificationResult.className = "success";
+        } else {
+          verificationResult.textContent = "❌ Product not found or counterfeit.";
+          verificationResult.className = "error";
+        }
+      } catch (err) {
+        console.error(err);
+        verificationResult.textContent = "Error verifying product. See console.";
+        verificationResult.className = "error";
+      }
+    });
+
+    // HTML escaping helper
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;',
+      })[m]);
+    }
+
+    // Initialize web3 and contract
+    initializeWeb3();
+
+    // QR Code scanner setup
+    const qrCodeRegionId = "qr-reader";
+    let html5QrCode = new Html5Qrcode(qrCodeRegionId);
+
+    function onScanSuccess(decodedText, decodedResult) {
+      // Handle on success condition with the decoded text or result.
+      console.log(QR Code detected: ${decodedText});
+      verifyInput.value = decodedText;
+      // Stop scanning to prevent multiple scans
+      html5QrCode.stop().then(() => {
+        console.log("QR Code scanning stopped.");
+      }).catch(console.error);
+    }
+
+    function onScanFailure(error) {
+      // Handle scan failure, usually ignore for continuous scanning
+      // console.warn(QR Code scan error: ${error});
+    }
+
+    // Start scanning with camera
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        const cameraId = cameras[0].id;
+        html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanFailure
+        ).catch(err => {
+          console.error(err);
+          alert("Unable to start camera for QR code scanning.");
+        });
+      } else {
+        alert("No camera found to start QR code scanning.");
+      }
+    }).catch(err => {
+      console.error(err);
+      alert("Error accessing cameras for QR code scanning.");
+    });
+  </script>
+</body>
+</html>
