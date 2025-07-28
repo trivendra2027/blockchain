@@ -1,134 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Product Registry</title>
   <style>
     body {
-      background: linear-gradient(to bottom, #f9f9f9, #e0e0e0);
       font-family: Arial, sans-serif;
-      padding: 40px;
-      text-align: center;
+      background: linear-gradient(135deg, #d0eaff, #f6f8fa);
+      color: #333;
+      padding: 20px;
     }
-    h1 {
-      color: #444;
-    }
+    h1 { color: #0077cc; }
     input, button {
-      padding: 10px;
-      margin: 10px;
-      width: 300px;
-      max-width: 90%;
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+      box-sizing: border-box;
     }
-    #result {
-      margin-top: 20px;
-      font-weight: bold;
+    button {
+      background: #0077cc;
+      color: white;
+      border: none;
+      cursor: pointer;
     }
+    #scanner { width: 100%; margin-top: 10px; }
+    .section { margin-bottom: 30px; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 </head>
 <body>
 
-  <h1>Product Registration</h1>
+<h1>🔒 Product Registry System</h1>
 
-  <h3>Register a Product</h3>
-  <input type="text" id="productId" placeholder="Product ID"><br>
-  <input type="text" id="name" placeholder="Product Name"><br>
-  <input type="text" id="manufacturer" placeholder="Manufacturer"><br>
-  <button onclick="registerProduct()">Register Product</button>
+<div class="section">
+  <h2>📷 Scan Barcode</h2>
+  <div id="scanner"></div>
+  <p><strong>Scanned Product ID:</strong> <span id="scannedResult">None</span></p>
+</div>
 
-  <h3>Verify Product</h3>
-  <input type="text" id="verifyId" placeholder="Product ID to Verify"><br>
-  <button onclick="verifyProduct()">Verify Product</button>
+<div class="section">
+  <h2>📝 Register Product</h2>
+  <input type="text" id="regProductId" placeholder="Product ID" />
+  <input type="text" id="regName" placeholder="Product Name" />
+  <input type="text" id="regManufacturer" placeholder="Manufacturer" />
+  <input type="date" id="regDate" />
+  <button onclick="registerProduct()">Register</button>
+  <p id="regStatus"></p>
+</div>
 
-  <div id="result"></div>
+<div class="section">
+  <h2>🔍 Verify Product</h2>
+  <input type="text" id="verifyProductId" placeholder="Enter or Scan Product ID" />
+  <button onclick="verifyProduct()">Verify</button>
+  <div id="verifyResult"></div>
+</div>
 
-  <script>
-    const contractAddress = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B"; // Replace if needed
+<script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-    const contractABI = [
-      {
-        "anonymous": false,
-        "inputs": [
-          {"indexed": false,"internalType": "string","name": "productId","type": "string"},
-          {"indexed": false,"internalType": "string","name": "name","type": "string"},
-          {"indexed": false,"internalType": "string","name": "manufacturer","type": "string"}
-        ],
-        "name": "ProductRegistered",
-        "type": "event"
-      },
-      {
-        "inputs": [
-          {"internalType": "string","name": "productId","type": "string"},
-          {"internalType": "string","name": "name","type": "string"},
-          {"internalType": "string","name": "manufacturer","type": "string"},
-          {"internalType": "uint256","name": "mDate","type": "uint256"}
-        ],
-        "name": "registerProduct",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {"internalType": "string","name": "productId","type": "string"}
-        ],
-        "name": "verifyProduct",
-        "outputs": [
-          {"internalType": "bool","name": "exists","type": "bool"},
-          {"internalType": "string","name": "name","type": "string"},
-          {"internalType": "string","name": "manufacturer","type": "string"}
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ];
+<script>
+  const contractAddress = "0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99";
+  const contractABI = [
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
+        { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
+        { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" }
+      ],
+      "name": "ProductRegistered",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        { "internalType": "string", "name": "productId", "type": "string" },
+        { "internalType": "string", "name": "name", "type": "string" },
+        { "internalType": "string", "name": "manufacturer", "type": "string" },
+        { "internalType": "uint256", "name": "mDate", "type": "uint256" }
+      ],
+      "name": "registerProduct",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "string", "name": "productId", "type": "string" }
+      ],
+      "name": "verifyProduct",
+      "outputs": [
+        { "internalType": "bool", "name": "exists", "type": "bool" },
+        { "internalType": "string", "name": "name", "type": "string" },
+        { "internalType": "string", "name": "manufacturer", "type": "string" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ];
 
-    // Auto-connect Web3 if available
-    let web3;
-    let contract;
-    window.addEventListener('load', async () => {
-      if (typeof window.ethereum !== 'undefined') {
-        web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        contract = new web3.eth.Contract(contractABI, contractAddress);
-        const accounts = await web3.eth.getAccounts();
-        window.currentAccount = accounts[0];
+  const web3 = new Web3(Web3.givenProvider || "http://127.0.0.1:8545");
+  const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+  // Set default account
+  async function setDefaultAccount() {
+    const accounts = await web3.eth.getAccounts();
+    web3.eth.defaultAccount = accounts[0];
+  }
+  setDefaultAccount();
+
+  // Register product
+  async function registerProduct() {
+    const id = document.getElementById("regProductId").value;
+    const name = document.getElementById("regName").value;
+    const mfg = document.getElementById("regManufacturer").value;
+    const date = new Date(document.getElementById("regDate").value).getTime();
+
+    try {
+      await contract.methods.registerProduct(id, name, mfg, date).send({ from: web3.eth.defaultAccount });
+      document.getElementById("regStatus").innerText = "✅ Product registered!";
+    } catch (err) {
+      document.getElementById("regStatus").innerText = "❌ Error: " + err.message;
+    }
+  }
+
+  // Verify product
+  async function verifyProduct() {
+    const id = document.getElementById("verifyProductId").value;
+    try {
+      const result = await contract.methods.verifyProduct(id).call();
+      if (result.exists) {
+        document.getElementById("verifyResult").innerHTML =
+          `<p>✅ Product Found:</p>
+           <p><b>Name:</b> ${result.name}</p>
+           <p><b>Manufacturer:</b> ${result.manufacturer}</p>`;
       } else {
-        alert("Please open this site with MetaMask enabled browser (e.g., Chrome with MetaMask)");
+        document.getElementById("verifyResult").innerText = "❌ Product not found!";
       }
-    });
-
-    async function registerProduct() {
-      const productId = document.getElementById("productId").value;
-      const name = document.getElementById("name").value;
-      const manufacturer = document.getElementById("manufacturer").value;
-      const mDate = Math.floor(Date.now() / 1000); // current time as UNIX timestamp
-
-      try {
-        await contract.methods.registerProduct(productId, name, manufacturer, mDate)
-          .send({ from: window.currentAccount });
-        alert("Product registered successfully!");
-      } catch (err) {
-        alert("Error during registration: " + err.message);
-      }
+    } catch (err) {
+      document.getElementById("verifyResult").innerText = "❌ Error: " + err.message;
     }
+  }
 
-    async function verifyProduct() {
-      const productId = document.getElementById("verifyId").value;
-      try {
-        const result = await contract.methods.verifyProduct(productId).call();
-        if (result.exists) {
-          document.getElementById("result").innerHTML = `
-            <p><strong>Product Name:</strong> ${result.name}</p>
-            <p><strong>Manufacturer:</strong> ${result.manufacturer}</p>
-          `;
-        } else {
-          document.getElementById("result").innerText = "Product not found!";
-        }
-      } catch (err) {
-        document.getElementById("result").innerText = "Error: " + err.message;
-      }
+  // Barcode scanner
+  const html5QrCode = new Html5Qrcode("scanner");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: 250
+    },
+    qrCodeMessage => {
+      document.getElementById("scannedResult").innerText = qrCodeMessage;
+      document.getElementById("regProductId").value = qrCodeMessage;
+      document.getElementById("verifyProductId").value = qrCodeMessage;
+    },
+    errorMessage => {
+      // Ignore decode errors
     }
-  </script>
+  ).catch(err => {
+    document.getElementById("scanner").innerText = "Camera Error: " + err;
+  });
+</script>
+
 </body>
 </html>
