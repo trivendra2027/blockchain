@@ -7,14 +7,14 @@
     body {
       font-family: Arial, sans-serif;
       margin: 30px;
-      background: #f4f4f4;
+      background: #f9f9f9;
     }
     h2 {
-      color: #333;
+      color: #222;
     }
     label {
       display: block;
-      margin: 10px 0 4px;
+      margin: 8px 0 4px;
     }
     input {
       padding: 8px;
@@ -33,30 +33,34 @@
     }
     #result {
       margin-top: 20px;
-      background: white;
       padding: 15px;
-      border-radius: 5px;
-      width: 50%;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      width: fit-content;
     }
   </style>
 </head>
 <body>
 
-  <h2>Register a Product</h2>
-  <label for="productId">Product ID</label>
-  <input type="text" id="productId">
-  <label for="name">Product Name</label>
-  <input type="text" id="name">
-  <label for="manufacturer">Manufacturer</label>
-  <input type="text" id="manufacturer">
-  <label for="mDate">Manufacture Date (UNIX Timestamp)</label>
-  <input type="number" id="mDate">
+  <h2>Register New Product</h2>
+  <label for="productId">Product ID:</label>
+  <input type="text" id="productId" required>
+  
+  <label for="name">Product Name:</label>
+  <input type="text" id="name" required>
+  
+  <label for="manufacturer">Manufacturer:</label>
+  <input type="text" id="manufacturer" required>
+  
+  <label for="mDate">Manufacturing Date (Unix timestamp):</label>
+  <input type="number" id="mDate" required>
+  
   <button onclick="registerProduct()">Register Product</button>
 
   <hr>
 
-  <h2>Verify a Product</h2>
-  <label for="verifyProductId">Product ID</label>
+  <h2>Verify Product</h2>
+  <label for="verifyProductId">Enter Product ID:</label>
   <input type="text" id="verifyProductId">
   <button onclick="verifyProduct()">Verify Product</button>
 
@@ -105,25 +109,21 @@
 
     let web3;
     let contract;
-    let userAccount;
+    let account;
 
     window.addEventListener('load', async () => {
       if (window.ethereum) {
         web3 = new Web3(window.ethereum);
         try {
           const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-          userAccount = accounts[0];
+          account = accounts[0];
           contract = new web3.eth.Contract(contractABI, contractAddress);
-          console.log("Connected account:", userAccount);
+          console.log("Connected:", account);
         } catch (err) {
-          alert("Error connecting to wallet: " + err.message);
+          alert("Failed to connect to wallet: " + err.message);
         }
-      } else if (window.web3) {
-        web3 = new Web3(web3.currentProvider);
-        userAccount = (await web3.eth.getAccounts())[0];
-        contract = new web3.eth.Contract(contractABI, contractAddress);
       } else {
-        alert("Please install MetaMask or use Remix JavaScript VM.");
+        alert("Please install MetaMask or use Remix VM to test this.");
       }
     });
 
@@ -131,37 +131,49 @@
       const productId = document.getElementById("productId").value;
       const name = document.getElementById("name").value;
       const manufacturer = document.getElementById("manufacturer").value;
-      const mDate = document.getElementById("mDate").value;
+      const mDate = parseInt(document.getElementById("mDate").value);
 
-      if (!userAccount) {
-        alert("Account not connected.");
+      if (!productId || !name || !manufacturer || isNaN(mDate)) {
+        alert("Please fill all fields.");
         return;
       }
 
       try {
         await contract.methods.registerProduct(productId, name, manufacturer, mDate)
-          .send({ from: userAccount });
-        alert("✅ Product registered successfully!");
+          .send({ from: account });
+
+        alert("✅ Product registered!");
+
+        // Immediately verify and show it
+        document.getElementById("verifyProductId").value = productId;
+        verifyProduct();
       } catch (err) {
-        alert("❌ Error: " + err.message);
+        alert("❌ Error registering product: " + err.message);
       }
     }
 
     async function verifyProduct() {
       const productId = document.getElementById("verifyProductId").value;
+      if (!productId) {
+        alert("Enter a product ID to verify.");
+        return;
+      }
+
       try {
         const result = await contract.methods.verifyProduct(productId).call();
+
         if (result.exists) {
           document.getElementById("result").innerHTML = `
-            ✅ <b>Product Found</b><br>
-            Name: ${result.name}<br>
-            Manufacturer: ${result.manufacturer}
+            ✅ Product Found!<br><br>
+            <b>Product ID:</b> ${productId}<br>
+            <b>Name:</b> ${result.name}<br>
+            <b>Manufacturer:</b> ${result.manufacturer}
           `;
         } else {
-          document.getElementById("result").innerText = "❌ Product not found.";
+          document.getElementById("result").innerHTML = "❌ Product not found.";
         }
       } catch (err) {
-        document.getElementById("result").innerText = "❌ Error: " + err.message;
+        document.getElementById("result").innerHTML = "❌ Error: " + err.message;
       }
     }
   </script>
