@@ -2,106 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Blockchain Product Registry</title>
+  <title>Product Registry & Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to right, #4facfe, #00f2fe);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 30px;
-      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #c3ecff, #eef2f7);
+      margin: 0;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
     }
-
-    h2 {
-      margin-top: 20px;
-    }
-
-    .container {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 25px;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 500px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    section {
+      background: #fff;
+      padding: 15px 25px;
       margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
     }
-
+    h1, h2 { text-align: center; color: #333; }
     label {
       display: block;
-      margin-top: 12px;
-      font-weight: bold;
-      color: #fff;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #444;
     }
-
-    input {
+    input, button {
       width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      margin-top: 4px;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
     }
-
     button {
-      margin-top: 16px;
-      padding: 12px 20px;
-      background-color: #fff;
-      color: #007bff;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+      background-color: #007bff;
+      color: white;
       font-weight: bold;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background-color: #e0e0e0;
-    }
-
-    #result {
+      border: none;
       margin-top: 20px;
-      background: #ffffff22;
-      padding: 15px;
-      border-radius: 10px;
-      text-align: left;
-      word-wrap: break-word;
+      cursor: pointer;
+    }
+    #qr-reader {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .success {
+      background: #e0f5e9;
+      color: green;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .error {
+      background: #fcebea;
+      color: red;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
+  <h1>Blockchain Product Registry</h1>
 
-  <div class="container">
+  <section>
     <h2>Register New Product</h2>
-    <label for="productId">Product ID:</label>
-    <input type="text" id="productId">
+    <form id="registration-form">
+      <label for="reg-productId">Product ID</label>
+      <input type="text" id="reg-productId" required />
+      <label for="reg-name">Product Name</label>
+      <input type="text" id="reg-name" required />
+      <label for="reg-manufacturer">Manufacturer</label>
+      <input type="text" id="reg-manufacturer" required />
+      <label for="reg-manufactureDate">Manufacture Date</label>
+      <input type="date" id="reg-manufactureDate" required />
+      <button type="submit">Register Product</button>
+    </form>
+    <div id="registration-result"></div>
+  </section>
 
-    <label for="name">Product Name:</label>
-    <input type="text" id="name">
-
-    <label for="manufacturer">Manufacturer:</label>
-    <input type="text" id="manufacturer">
-
-    <label for="mDate">Manufacture Date (UNIX Timestamp):</label>
-    <input type="number" id="mDate">
-
-    <button onclick="registerProduct()">Register Product</button>
-  </div>
-
-  <div class="container">
+  <section>
     <h2>Verify Product</h2>
-    <label for="verifyProductId">Enter Product ID:</label>
-    <input type="text" id="verifyProductId">
-    <button onclick="verifyProduct()">Verify Product</button>
+    <label for="verify-productId">Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
+    <button id="verify-btn">Verify Product</button>
+    <div id="verification-result"></div>
+    <div id="qr-reader"></div>
+  </section>
 
-    <div id="result"></div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
   <script>
-    const contractAddress = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B";
     const contractABI = [
       {
         "anonymous": false,
@@ -140,73 +134,77 @@
       }
     ];
 
-    let web3;
-    let contract;
-    let account;
+    const contractAddress = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B";
 
-    window.addEventListener('load', async () => {
-      if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
-        try {
-          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-          account = accounts[0];
-          contract = new web3.eth.Contract(contractABI, contractAddress);
-        } catch (err) {
-          alert("Wallet connection error: " + err.message);
-        }
-      } else {
-        alert("Please install MetaMask to use this app.");
+    // Using Remix VM provider
+    let web3 = new Web3(Web3.givenProvider || "http://localhost:8545");
+    const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+    async function getAccount() {
+      const accounts = await web3.eth.getAccounts();
+      return accounts[0];
+    }
+
+    document.getElementById("registration-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const productId = document.getElementById('reg-productId').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const manufacturer = document.getElementById('reg-manufacturer').value.trim();
+      const date = new Date(document.getElementById('reg-manufactureDate').value);
+      const mDate = Math.floor(date.getTime() / 1000);
+      const resultDiv = document.getElementById("registration-result");
+      resultDiv.innerHTML = "";
+
+      try {
+        const account = await getAccount();
+        await contract.methods.registerProduct(productId, name, manufacturer, mDate).send({ from: account });
+        resultDiv.innerHTML = "✅ Product Registered!";
+        resultDiv.className = "success";
+        e.target.reset();
+      } catch (error) {
+        resultDiv.innerHTML = "❌ Registration failed.";
+        resultDiv.className = "error";
+        console.error(error);
       }
     });
 
-    async function registerProduct() {
-      const productId = document.getElementById("productId").value;
-      const name = document.getElementById("name").value;
-      const manufacturer = document.getElementById("manufacturer").value;
-      const mDate = parseInt(document.getElementById("mDate").value);
-
-      if (!productId || !name || !manufacturer || isNaN(mDate)) {
-        alert("Please fill all fields.");
-        return;
-      }
-
+    document.getElementById("verify-btn").addEventListener("click", async () => {
+      const pid = document.getElementById("verify-productId").value.trim();
+      const resultDiv = document.getElementById("verification-result");
+      resultDiv.innerHTML = "";
       try {
-        await contract.methods.registerProduct(productId, name, manufacturer, mDate)
-          .send({ from: account });
-
-        alert("✅ Product registered!");
-        document.getElementById("verifyProductId").value = productId;
-        verifyProduct();
-      } catch (err) {
-        alert("❌ Error: " + err.message);
-      }
-    }
-
-    async function verifyProduct() {
-      const productId = document.getElementById("verifyProductId").value;
-
-      if (!productId) {
-        alert("Please enter a Product ID.");
-        return;
-      }
-
-      try {
-        const result = await contract.methods.verifyProduct(productId).call();
-        if (result.exists) {
-          document.getElementById("result").innerHTML = `
-            <strong>✅ Product Found</strong><br><br>
-            <b>Product ID:</b> ${productId}<br>
-            <b>Name:</b> ${result.name}<br>
-            <b>Manufacturer:</b> ${result.manufacturer}
-          `;
+        const res = await contract.methods.verifyProduct(pid).call();
+        if (res.exists || res[0]) {
+          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res.name || res[1]}<br><strong>Manufacturer:</strong> ${res.manufacturer || res[2]}`;
+          resultDiv.className = "success";
         } else {
-          document.getElementById("result").innerHTML = `<strong>❌ Product Not Found</strong>`;
+          resultDiv.innerHTML = "❌ Product not found!";
+          resultDiv.className = "error";
         }
-      } catch (err) {
-        document.getElementById("result").innerHTML = `❌ Error: ${err.message}`;
+      } catch (error) {
+        resultDiv.innerHTML = "❌ Verification failed.";
+        resultDiv.className = "error";
+        console.error(error);
       }
-    }
-  </script>
+    });
 
+    // Continuous QR scanning
+    function startScanner() {
+      const scanner = new Html5Qrcode("qr-reader");
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          document.getElementById("verify-productId").value = decodedText;
+          document.getElementById("verify-btn").click();
+        },
+        (error) => { /* ignore scan errors */ }
+      ).catch(err => {
+        console.error("Camera start error:", err);
+      });
+    }
+
+    window.onload = startScanner;
+  </script>
 </body>
 </html>
