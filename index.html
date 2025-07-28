@@ -1,58 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Flexible Product Registry DApp</title>
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Product Registry DApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
-      font-family: Arial;
-      padding: 40px;
-      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #141e30, #243b55);
+      color: #fff;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 {
+      color: #00ffff;
     }
     input, button {
-      margin: 5px 0;
-      padding: 8px;
-      font-size: 14px;
+      padding: 10px;
+      margin: 5px;
+      width: 250px;
     }
-    #status, #result {
+    #qr-reader {
+      width: 300px;
+      margin: auto;
+    }
+    #status {
       margin-top: 10px;
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h2>🧾 Product Registry DApp (Dynamic Contract)</h2>
 
-  <button onclick="connectWallet()">🔌 Connect Wallet</button>
-  <div id="account"></div>
+  <h1>🔒 Product Registry DApp</h1>
 
-  <hr>
+  <button onclick="connectWallet()">🔗 Connect Wallet</button><br><br>
 
-  <h3>🔗 Load Contract</h3>
-  <input type="text" id="contractAddress" placeholder="Enter Contract Address"><br>
-  <button onclick="loadContract()">Load Contract</button>
-  <div id="contractStatus"></div>
+  <div id="qr-reader"></div><br>
 
-  <hr>
+  <form id="productForm">
+    <input type="text" id="productId" placeholder="Product ID (barcode)" required><br>
+    <input type="text" id="name" placeholder="Product Name" required><br>
+    <input type="text" id="manufacturer" placeholder="Manufacturer" required><br>
+    <input type="date" id="mDate" required><br>
+    <button type="submit">✅ Register Product</button>
+  </form>
 
-  <h3>📦 Register Product</h3>
-  <input type="text" id="regProductId" placeholder="Product ID"><br>
-  <input type="text" id="regName" placeholder="Product Name"><br>
-  <input type="text" id="regManufacturer" placeholder="Manufacturer"><br>
-  <input type="date" id="regMfgDate"><br>
-  <button onclick="registerProduct()">Register</button>
-  <div id="status"></div>
+  <br><br>
 
-  <hr>
+  <input type="text" id="verifyProductId" placeholder="Enter Product ID to Verify">
+  <button onclick="verifyProduct()">🔍 Verify</button>
 
-  <h3>🔍 Verify Product</h3>
-  <input type="text" id="verProductId" placeholder="Enter Product ID"><br>
-  <button onclick="verifyProduct()">Verify</button>
-  <div id="result"></div>
+  <p id="status"></p>
 
   <script>
-    const contractABI = [
+    let web3;
+    let contract;
+
+    const contractAddress = "0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d";
+    const contractABI = [ /* paste your ABI here */ 
       {
         "anonymous": false,
         "inputs": [
@@ -76,7 +83,9 @@
         "type": "function"
       },
       {
-        "inputs": [{ "internalType": "string", "name": "productId", "type": "string" }],
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" }
+        ],
         "name": "verifyProduct",
         "outputs": [
           { "internalType": "bool", "name": "exists", "type": "bool" },
@@ -88,73 +97,67 @@
       }
     ];
 
-    let web3;
-    let account;
-    let contract;
-
     async function connectWallet() {
       if (window.ethereum) {
         web3 = new Web3(window.ethereum);
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        account = accounts[0];
-        document.getElementById("account").innerText = "Connected: " + account;
+        await ethereum.request({ method: "eth_requestAccounts" });
+        contract = new web3.eth.Contract(contractABI, contractAddress);
+        document.getElementById("status").innerText = "✅ Wallet connected!";
       } else {
-        alert("Please install MetaMask!");
+        alert("Please install MetaMask.");
       }
     }
 
-    function loadContract() {
-      const address = document.getElementById("contractAddress").value.trim();
-      if (!web3 || !account) {
-        alert("Please connect wallet first.");
-        return;
-      }
-      if (!web3.utils.isAddress(address)) {
-        alert("Invalid contract address");
-        return;
-      }
-      contract = new web3.eth.Contract(contractABI, address);
-      document.getElementById("contractStatus").innerText = "✅ Contract loaded: " + address;
-    }
-
-    async function registerProduct() {
-      if (!contract) {
-        alert("Load contract first.");
-        return;
-      }
-      const id = document.getElementById("regProductId").value;
-      const name = document.getElementById("regName").value;
-      const manufacturer = document.getElementById("regManufacturer").value;
-      const dateStr = document.getElementById("regMfgDate").value;
-      const dateUnix = Math.floor(new Date(dateStr).getTime() / 1000);
+    document.getElementById("productForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const accounts = await web3.eth.getAccounts();
+      const productId = document.getElementById("productId").value;
+      const name = document.getElementById("name").value;
+      const manufacturer = document.getElementById("manufacturer").value;
+      const mDate = new Date(document.getElementById("mDate").value).getTime();
 
       try {
-        await contract.methods.registerProduct(id, name, manufacturer, dateUnix)
-          .send({ from: account });
-        document.getElementById("status").innerText = "✅ Product Registered!";
-      } catch (err) {
-        document.getElementById("status").innerText = "❌ Error: " + err.message;
+        await contract.methods.registerProduct(productId, name, manufacturer, mDate)
+          .send({ from: accounts[0] });
+
+        document.getElementById("status").innerText = "✅ Product registered successfully!";
+      } catch (error) {
+        document.getElementById("status").innerText = "❌ Error: " + error.message;
       }
-    }
+    });
 
     async function verifyProduct() {
-      if (!contract) {
-        alert("Load contract first.");
-        return;
-      }
-      const id = document.getElementById("verProductId").value;
+      const productId = document.getElementById("verifyProductId").value;
+
       try {
-        const result = await contract.methods.verifyProduct(id).call();
+        const result = await contract.methods.verifyProduct(productId).call();
         if (result.exists) {
-          document.getElementById("result").innerHTML =
-            `✅ Product Found<br>Name: ${result.name}<br>Manufacturer: ${result.manufacturer}`;
+          document.getElementById("status").innerText =
+            `✅ Product Found:\nName: ${result.name}\nManufacturer: ${result.manufacturer}`;
         } else {
-          document.getElementById("result").innerText = "❌ Product not found.";
+          document.getElementById("status").innerText = "❌ Product not found.";
         }
-      } catch (err) {
-        document.getElementById("result").innerText = "❌ Error: " + err.message;
+      } catch (error) {
+        document.getElementById("status").innerText = "❌ Error: " + error.message;
       }
     }
+
+    // Barcode Scanner with back camera
+    const html5QrCode = new Html5Qrcode("qr-reader");
+    Html5Qrcode.getCameras().then(devices => {
+      const backCamera = devices.find(device => device.label.toLowerCase().includes('back')) || devices[0];
+      html5QrCode.start(
+        backCamera.id,
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          document.getElementById("productId").value = decodedText;
+        },
+        (errorMessage) => {}
+      );
+    }).catch(err => {
+      document.getElementById("status").innerText = "❌ Camera error: " + err;
+    });
   </script>
+
 </body>
 </html>
