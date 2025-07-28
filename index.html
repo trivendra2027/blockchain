@@ -69,6 +69,7 @@
       display: inline-block;
       border-radius: 5px;
       cursor: pointer;
+      text-align: center;
     }
   </style>
 </head>
@@ -110,7 +111,7 @@
 
     let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
 
-    // Wallet connection
+    // Connect wallet
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
         try {
@@ -128,7 +129,7 @@
       }
     });
 
-    // Register Product
+    // Register product
     document.getElementById("registration-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const productId = document.getElementById('reg-productId').value;
@@ -151,7 +152,7 @@
       }
     });
 
-    // Verify Product
+    // Verify product
     document.getElementById("verify-btn").addEventListener("click", async () => {
       const pid = document.getElementById("verify-productId").value.trim();
       const resultDiv = document.getElementById("verification-result");
@@ -173,37 +174,43 @@
       }
     });
 
-    // Start QR Scanner
+    // Start QR scanner
     async function startScanner() {
       scanner = new Html5Qrcode("qr-reader");
-      const devices = await Html5Qrcode.getCameras();
 
-      if (devices && devices.length) {
-        const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
-        currentCameraId = backCam.id;
-        await scanner.start(
-          { deviceId: { exact: currentCameraId } },
-          { fps: 10, qrbox: 250 },
-          (decodedText) => {
-            document.getElementById("qr-result").innerText = `📦 QR Detected: ${decodedText}`;
-            document.getElementById("verify-productId").value = decodedText;
-            document.getElementById("verify-btn").click();
-          },
-          (err) => {
-            console.warn("Scan error:", err);
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length) {
+          const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
+          currentCameraId = backCam.id;
+
+          await scanner.start(
+            { deviceId: { exact: currentCameraId } },
+            { fps: 10, qrbox: 250 },
+            (decodedText) => {
+              document.getElementById("qr-result").innerText = `📦 QR Detected: ${decodedText}`;
+              document.getElementById("verify-productId").value = decodedText;
+              document.getElementById("verify-btn").click();
+            },
+            (error) => {
+              console.warn("QR Scan Error:", error);
+            }
+          );
+
+          const capabilities = await scanner.getRunningTrackCapabilities();
+          if (capabilities.torch) {
+            document.getElementById("flash-toggle").style.display = "block";
           }
-        );
-
-        const capabilities = await scanner.getRunningTrackCapabilities();
-        if (capabilities.torch) {
-          document.getElementById("flash-toggle").style.display = "inline-block";
+        } else {
+          document.getElementById("qr-result").innerText = "❌ No camera found!";
         }
-      } else {
-        document.getElementById("qr-result").innerText = "❌ No camera found!";
+      } catch (err) {
+        console.error("Scanner start error:", err);
+        document.getElementById("qr-result").innerText = "❌ Unable to access camera.";
       }
     }
 
-    // Toggle Flashlight
+    // Toggle flashlight
     document.getElementById("flash-toggle").addEventListener("click", async () => {
       if (scanner && currentCameraId) {
         flashOn = !flashOn;
@@ -212,7 +219,7 @@
             advanced: [{ torch: flashOn }]
           });
         } catch (err) {
-          alert("⚠️ Flashlight control not supported.");
+          alert("⚠️ Flashlight not supported on this device.");
         }
       }
     });
