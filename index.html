@@ -88,11 +88,31 @@
       color: red;
       background-color: #fcebea;
     }
+    #connectWalletBtn {
+      background-color: #28a745;
+      color: white;
+      font-size: 1rem;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    #walletAddress {
+      text-align: center;
+      color: green;
+      font-weight: bold;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
 
   <h1>Blockchain Product Registry</h1>
+
+  <button id="connectWalletBtn">🔗 Connect Wallet</button>
+  <p id="walletAddress"></p>
 
   <section>
     <h2>Register New Product</h2>
@@ -121,51 +141,11 @@
     <button id="verify-btn" disabled>Verify Product</button>
 
     <div id="verification-result"></div>
-
     <div id="qr-reader"></div>
   </section>
 
   <script>
-    // Paste your contract ABI here
-    const contractABI = [
-      {
-        "anonymous": false,
-        "inputs": [
-          { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
-          { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
-          { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" }
-        ],
-        "name": "ProductRegistered",
-        "type": "event"
-      },
-      {
-        "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" },
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "manufacturer", "type": "string" },
-          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
-        ],
-        "name": "registerProduct",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" }
-        ],
-        "name": "verifyProduct",
-        "outputs": [
-          { "internalType": "bool", "name": "", "type": "bool" },
-          { "internalType": "string", "name": "", "type": "string" },
-          { "internalType": "string", "name": "", "type": "string" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ];
-
-    // Your deployed contract address here:
+    const contractABI = [/* paste your ABI here (unchanged) */];
     const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
     let web3, contract, userAccount;
@@ -178,26 +158,26 @@
     const verifyBtn = document.getElementById('verify-btn');
     const verificationResult = document.getElementById('verification-result');
 
-    async function initializeWeb3() {
-      if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
+    // Step 1: Connect Wallet on Button Click
+    document.getElementById("connectWalletBtn").addEventListener("click", async () => {
+      if (typeof window.ethereum !== 'undefined') {
         try {
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-          const accounts = await web3.eth.getAccounts();
+          web3 = new Web3(window.ethereum);
+          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
           userAccount = accounts[0];
+          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           contract = new web3.eth.Contract(contractABI, contractAddress);
           verifyBtn.disabled = false;
-          console.log("Connected with account:", userAccount);
+          console.log("Wallet connected:", userAccount);
         } catch (err) {
-          alert("Please allow access to MetaMask.");
-          console.error(err);
+          console.error("Wallet connection failed", err);
+          alert("Wallet connection was rejected.");
         }
       } else {
-        alert("MetaMask is not installed. Please install it to use this app.");
+        alert("MetaMask is not detected. Please install it.");
       }
-    }
+    });
 
-    // Product registration handler
     regForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       registrationResult.textContent = "";
@@ -224,12 +204,10 @@
 
         registrationResult.textContent = "Product registered successfully!";
         registrationResult.className = "success";
-
-        // Clear inputs
         regForm.reset();
       } catch (err) {
         console.error(err);
-        registrationResult.textContent = "Failed to register product. See console.";
+        registrationResult.textContent = "Failed to register product.";
         registrationResult.className = "error";
       } finally {
         registerBtn.disabled = false;
@@ -237,7 +215,6 @@
       }
     });
 
-    // Product verification handler
     verifyBtn.addEventListener('click', async () => {
       const productId = verifyInput.value.trim();
       verificationResult.textContent = "";
@@ -249,9 +226,9 @@
       try {
         const result = await contract.methods.verifyProduct(productId).call({ from: userAccount });
         if(result[0]) {
-          verificationResult.innerHTML = <span style="color:green;">✔️ Authentic product found!</span><br>
+          verificationResult.innerHTML = `<span style="color:green;">✔️ Authentic product found!</span><br>
             <strong>Name:</strong> ${escapeHtml(result[1])}<br>
-            <strong>Manufacturer:</strong> ${escapeHtml(result[2])};
+            <strong>Manufacturer:</strong> ${escapeHtml(result[2])}`;
           verificationResult.className = "success";
         } else {
           verificationResult.textContent = "❌ Product not found or counterfeit.";
@@ -259,12 +236,11 @@
         }
       } catch (err) {
         console.error(err);
-        verificationResult.textContent = "Error verifying product. See console.";
+        verificationResult.textContent = "Error verifying product.";
         verificationResult.className = "error";
       }
     });
 
-    // HTML escaping helper
     function escapeHtml(text) {
       if (!text) return '';
       return text.replace(/[&<>"']/g, (m) => ({
@@ -276,29 +252,20 @@
       })[m]);
     }
 
-    // Initialize web3 and contract
-    initializeWeb3();
-
-    // QR Code scanner setup
+    // QR Code Scanner Setup
     const qrCodeRegionId = "qr-reader";
     let html5QrCode = new Html5Qrcode(qrCodeRegionId);
 
     function onScanSuccess(decodedText, decodedResult) {
-      // Handle on success condition with the decoded text or result.
-      console.log(QR Code detected: ${decodedText});
+      console.log(`QR Code detected: ${decodedText}`);
       verifyInput.value = decodedText;
-      // Stop scanning to prevent multiple scans
       html5QrCode.stop().then(() => {
         console.log("QR Code scanning stopped.");
       }).catch(console.error);
     }
 
-    function onScanFailure(error) {
-      // Handle scan failure, usually ignore for continuous scanning
-      // console.warn(QR Code scan error: ${error});
-    }
+    function onScanFailure(error) {}
 
-    // Start scanning with camera
     Html5Qrcode.getCameras().then(cameras => {
       if (cameras && cameras.length) {
         const cameraId = cameras[0].id;
@@ -312,11 +279,11 @@
           alert("Unable to start camera for QR code scanning.");
         });
       } else {
-        alert("No camera found to start QR code scanning.");
+        alert("No camera found.");
       }
     }).catch(err => {
       console.error(err);
-      alert("Error accessing cameras for QR code scanning.");
+      alert("Error accessing cameras.");
     });
   </script>
 </body>
