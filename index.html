@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <title>Product Registry & Verification with Barcode Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
-  <!-- Web3.js for blockchain interaction -->
+
+  <!-- Web3.js -->
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
-  <!-- Html5-qrcode for barcode scanning -->
+  <!-- QR Scanner -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
   <style>
@@ -145,7 +145,7 @@
   </section>
 
   <script>
-    const contractABI = [/* paste your ABI here (unchanged) */];
+    const contractABI = [/* paste your ABI here */];
     const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
     let web3, contract, userAccount;
@@ -158,7 +158,7 @@
     const verifyBtn = document.getElementById('verify-btn');
     const verificationResult = document.getElementById('verification-result');
 
-    // Step 1: Connect Wallet on Button Click
+    // Connect Wallet
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (typeof window.ethereum !== 'undefined') {
         try {
@@ -168,10 +168,8 @@
           document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           contract = new web3.eth.Contract(contractABI, contractAddress);
           verifyBtn.disabled = false;
-          console.log("Wallet connected:", userAccount);
         } catch (err) {
-          console.error("Wallet connection failed", err);
-          alert("Wallet connection was rejected.");
+          alert("Wallet connection rejected.");
         }
       } else {
         alert("MetaMask is not detected. Please install it.");
@@ -202,12 +200,12 @@
         await contract.methods.registerProduct(productId, name, manufacturer, mDateTimestamp)
           .send({ from: userAccount });
 
-        registrationResult.textContent = "Product registered successfully!";
+        registrationResult.textContent = "✅ Product registered successfully!";
         registrationResult.className = "success";
         regForm.reset();
       } catch (err) {
         console.error(err);
-        registrationResult.textContent = "Failed to register product.";
+        registrationResult.textContent = "❌ Failed to register product.";
         registrationResult.className = "error";
       } finally {
         registerBtn.disabled = false;
@@ -226,7 +224,7 @@
       try {
         const result = await contract.methods.verifyProduct(productId).call({ from: userAccount });
         if(result[0]) {
-          verificationResult.innerHTML = `<span style="color:green;">✔️ Authentic product found!</span><br>
+          verificationResult.innerHTML = `<strong>✔️ Authentic product found!</strong><br>
             <strong>Name:</strong> ${escapeHtml(result[1])}<br>
             <strong>Manufacturer:</strong> ${escapeHtml(result[2])}`;
           verificationResult.className = "success";
@@ -235,7 +233,6 @@
           verificationResult.className = "error";
         }
       } catch (err) {
-        console.error(err);
         verificationResult.textContent = "Error verifying product.";
         verificationResult.className = "error";
       }
@@ -252,38 +249,38 @@
       })[m]);
     }
 
-    // QR Code Scanner Setup
+    // QR SCANNER SETUP
     const qrCodeRegionId = "qr-reader";
     let html5QrCode = new Html5Qrcode(qrCodeRegionId);
 
     function onScanSuccess(decodedText, decodedResult) {
-      console.log(`QR Code detected: ${decodedText}`);
       verifyInput.value = decodedText;
       html5QrCode.stop().then(() => {
         console.log("QR Code scanning stopped.");
       }).catch(console.error);
     }
 
-    function onScanFailure(error) {}
+    function onScanFailure(error) {
+      // Optional: handle scan failures
+    }
 
+    // Start QR scanner with back camera
     Html5Qrcode.getCameras().then(cameras => {
       if (cameras && cameras.length) {
-        const cameraId = cameras[0].id;
+        const backCam = cameras.find(cam => cam.label.toLowerCase().includes('back')) || cameras[0];
         html5QrCode.start(
-          cameraId,
+          backCam.id,
           { fps: 10, qrbox: 250 },
           onScanSuccess,
           onScanFailure
         ).catch(err => {
-          console.error(err);
-          alert("Unable to start camera for QR code scanning.");
+          alert("Unable to start camera: " + err);
         });
       } else {
         alert("No camera found.");
       }
     }).catch(err => {
-      console.error(err);
-      alert("Error accessing cameras.");
+      alert("Error accessing camera: " + err);
     });
   </script>
 </body>
