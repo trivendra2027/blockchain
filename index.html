@@ -55,6 +55,21 @@
     }
     .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
     .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    #qr-result {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      text-align: center;
+    }
+    .flash-toggle {
+      background: #28a745;
+      color: #fff;
+      padding: 8px 12px;
+      margin-top: 10px;
+      display: inline-block;
+      border-radius: 5px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -84,14 +99,16 @@
     <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
     <button id="verify-btn" disabled>Verify Product</button>
     <div id="verification-result"></div>
+    <div id="qr-result"></div>
     <div id="qr-reader"></div>
+    <div class="flash-toggle" id="flash-toggle" style="display:none;">🔦 Toggle Flashlight</div>
   </section>
 
   <script>
     const contractABI = [/* INSERT YOUR ABI HERE */];
     const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
-    let web3, contract, userAccount;
+    let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
 
     // Wallet connection
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
@@ -156,19 +173,49 @@
       }
     });
 
-    // Enable continuous barcode scan
-    function startScanner() {
-      const scanner = new Html5Qrcode("qr-reader");
-      scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => {
-          document.getElementById("verify-productId").value = decodedText;
-          document.getElementById("verify-btn").click(); // auto-verify
-        },
-        (err) => { console.warn("Scan error:", err); }
-      ).catch(err => console.error("Camera start error:", err));
+    // Start QR Scanner
+    async function startScanner() {
+      scanner = new Html5Qrcode("qr-reader");
+      const devices = await Html5Qrcode.getCameras();
+
+      if (devices && devices.length) {
+        const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
+        currentCameraId = backCam.id;
+        await scanner.start(
+          { deviceId: { exact: currentCameraId } },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            document.getElementById("qr-result").innerText = `📦 QR Detected: ${decodedText}`;
+            document.getElementById("verify-productId").value = decodedText;
+            document.getElementById("verify-btn").click();
+          },
+          (err) => {
+            console.warn("Scan error:", err);
+          }
+        );
+
+        const capabilities = await scanner.getRunningTrackCapabilities();
+        if (capabilities.torch) {
+          document.getElementById("flash-toggle").style.display = "inline-block";
+        }
+      } else {
+        document.getElementById("qr-result").innerText = "❌ No camera found!";
+      }
     }
+
+    // Toggle Flashlight
+    document.getElementById("flash-toggle").addEventListener("click", async () => {
+      if (scanner && currentCameraId) {
+        flashOn = !flashOn;
+        try {
+          await scanner.applyVideoConstraints({
+            advanced: [{ torch: flashOn }]
+          });
+        } catch (err) {
+          alert("⚠️ Flashlight control not supported.");
+        }
+      }
+    });
 
     window.onload = startScanner;
   </script>
