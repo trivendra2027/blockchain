@@ -1,140 +1,176 @@
-<!-- Keep your original <head> section as-is -->
-<!-- Start of <body> -->
-<body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Product Registry & Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-  <h1>Blockchain Product System</h1>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2f7;
+      margin: 0; padding: 20px;
+      max-width: 600px; margin: auto;
+    }
+    section {
+      background: #fff;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    h1, h2 { text-align: center; color: #333; }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #444;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
+      border: none;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    #walletAddress {
+      text-align: center;
+      color: green;
+      font-weight: bold;
+    }
+    #qr-reader {
+      width: 100%; margin-top: 10px;
+    }
+    .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
+    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Blockchain Product Registry</h1>
   <button id="connectWalletBtn">🔗 Connect Wallet</button>
   <p id="walletAddress"></p>
 
-  <!-- 🔒 Product Registration Section -->
   <section>
-    <h2>Register Product</h2>
-    <input type="text" id="reg-productId" placeholder="Product ID" />
-    <input type="text" id="reg-name" placeholder="Product Name" />
-    <input type="text" id="reg-manufacturer" placeholder="Manufacturer" />
-    <button id="register-btn" disabled>Register Product</button>
-    <p id="register-status"></p>
+    <h2>Register New Product</h2>
+    <form id="registration-form">
+      <label for="reg-productId">Product ID</label>
+      <input type="text" id="reg-productId" required />
+      <label for="reg-name">Product Name</label>
+      <input type="text" id="reg-name" required />
+      <label for="reg-manufacturer">Manufacturer</label>
+      <input type="text" id="reg-manufacturer" required />
+      <label for="reg-manufactureDate">Manufacture Date</label>
+      <input type="date" id="reg-manufactureDate" required />
+      <button type="submit" id="register-btn">Register Product</button>
+    </form>
+    <div id="registration-result"></div>
   </section>
 
-  <!-- ✅ Product Verification Section -->
   <section>
     <h2>Verify Product</h2>
-    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" autocomplete="off" />
+    <label for="verify-productId">Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
     <button id="verify-btn" disabled>Verify Product</button>
     <div id="verification-result"></div>
     <div id="qr-reader"></div>
   </section>
 
-  <!-- 👤 Ownership Verification Section -->
-  <section>
-    <h2>Check Product Owner</h2>
-    <input type="text" id="owner-productId" placeholder="Enter Product ID" />
-    <button id="owner-btn" disabled>Get Owner</button>
-    <p id="owner-result"></p>
-  </section>
-
   <script>
-    const contractABI = [/* paste your full ABI here */];
-    const contractAddress = "0x..."; // paste your contract address
+    const contractABI = [/* INSERT YOUR ABI HERE */];
+    const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
     let web3, contract, userAccount;
 
-    const verifyInput = document.getElementById('verify-productId');
-    const verifyBtn = document.getElementById('verify-btn');
-    const registerBtn = document.getElementById('register-btn');
-    const ownerBtn = document.getElementById('owner-btn');
-
-    // Connect wallet
+    // Wallet connection
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
-      if (typeof window.ethereum !== 'undefined') {
+      if (window.ethereum) {
         try {
           web3 = new Web3(window.ethereum);
-          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           userAccount = accounts[0];
-          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           contract = new web3.eth.Contract(contractABI, contractAddress);
-
-          registerBtn.disabled = false;
-          verifyBtn.disabled = false;
-          ownerBtn.disabled = false;
+          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
+          document.getElementById("verify-btn").disabled = false;
         } catch (err) {
-          alert("Connection rejected.");
+          alert("User denied wallet connection.");
         }
       } else {
-        alert("Install MetaMask.");
+        alert("Please install MetaMask.");
       }
     });
 
-    // Register product
-    registerBtn.addEventListener('click', async () => {
-      const id = document.getElementById('reg-productId').value;
+    // Register Product
+    document.getElementById("registration-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const productId = document.getElementById('reg-productId').value;
       const name = document.getElementById('reg-name').value;
-      const maker = document.getElementById('reg-manufacturer').value;
-      const timestamp = Math.floor(Date.now() / 1000);
-      document.getElementById('register-status').textContent = "⏳ Registering...";
-      try {
-        await contract.methods.registerProduct(id, name, maker, timestamp).send({ from: userAccount });
-        document.getElementById('register-status').textContent = "✅ Registered successfully.";
-      } catch (err) {
-        document.getElementById('register-status').textContent = "❌ Registration failed.";
-      }
-    });
-
-    // Verify product
-    verifyBtn.addEventListener('click', async () => {
-      const productId = verifyInput.value.trim();
-      const resultDiv = document.getElementById('verification-result');
+      const manufacturer = document.getElementById('reg-manufacturer').value;
+      const date = document.getElementById('reg-manufactureDate').value;
+      const timestamp = Math.floor(new Date(date).getTime() / 1000);
+      const resultDiv = document.getElementById("registration-result");
       resultDiv.textContent = "";
-      resultDiv.className = "";
-      if (!productId) return alert("Enter or scan product ID.");
 
       try {
-        const result = await contract.methods.verifyProduct(productId).call({ from: userAccount });
-        if (result[0]) {
-          resultDiv.innerHTML = `<strong>✔️ Authentic</strong><br>Name: ${result[1]}<br>Manufacturer: ${result[2]}`;
-          resultDiv.className = "success";
-        } else {
-          resultDiv.textContent = "❌ Product not found.";
-          resultDiv.className = "error";
-        }
-      } catch {
-        resultDiv.textContent = "⚠️ Verification error.";
+        await contract.methods.registerProduct(productId, name, manufacturer, timestamp).send({ from: userAccount });
+        resultDiv.textContent = "✅ Product Registered!";
+        resultDiv.className = "success";
+        e.target.reset();
+      } catch (err) {
+        console.error(err);
+        resultDiv.textContent = "❌ Registration failed.";
         resultDiv.className = "error";
       }
     });
 
-    // Get product owner
-    ownerBtn.addEventListener('click', async () => {
-      const pid = document.getElementById('owner-productId').value.trim();
-      const res = document.getElementById('owner-result');
-      if (!pid) return;
-      res.textContent = "⏳ Checking owner...";
+    // Verify Product
+    document.getElementById("verify-btn").addEventListener("click", async () => {
+      const pid = document.getElementById("verify-productId").value.trim();
+      const resultDiv = document.getElementById("verification-result");
+      resultDiv.textContent = "";
+      resultDiv.className = "";
+
       try {
-        const owner = await contract.methods.getProductOwner(pid).call();
-        res.textContent = `👤 Owner: ${owner}`;
-      } catch {
-        res.textContent = "❌ Failed to fetch owner.";
+        const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
+        if (res[0]) {
+          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
+          resultDiv.className = "success";
+        } else {
+          resultDiv.textContent = "❌ Product not found!";
+          resultDiv.className = "error";
+        }
+      } catch (err) {
+        resultDiv.textContent = "❌ Error verifying product.";
+        resultDiv.className = "error";
       }
     });
 
-    // QR Scanner Setup
-    const qrCodeRegionId = "qr-reader";
-    const html5QrCode = new Html5Qrcode(qrCodeRegionId);
-
-    function onScanSuccess(decodedText) {
-      verifyInput.value = decodedText;
+    // Enable continuous barcode scan
+    function startScanner() {
+      const scanner = new Html5Qrcode("qr-reader");
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          document.getElementById("verify-productId").value = decodedText;
+          document.getElementById("verify-btn").click(); // auto-verify
+        },
+        (err) => { console.warn("Scan error:", err); }
+      ).catch(err => console.error("Camera start error:", err));
     }
 
-    Html5Qrcode.getCameras().then(cameras => {
-      if (cameras && cameras.length) {
-        html5QrCode.start(
-          cameras[0].id,
-          { fps: 10, qrbox: 250 },
-          onScanSuccess,
-          () => {}
-        );
-      }
-    });
+    window.onload = startScanner;
   </script>
-
 </body>
+</html>
