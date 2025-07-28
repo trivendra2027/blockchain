@@ -4,36 +4,66 @@
   <meta charset="UTF-8">
   <title>Blockchain Product Registry</title>
   <style>
-    body { font-family: Arial; margin: 30px; }
-    label, input, button { display: block; margin: 10px 0; }
-    #result { margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background: #f4f4f4;
+    }
+    h2 {
+      color: #333;
+    }
+    label {
+      display: block;
+      margin: 10px 0 4px;
+    }
+    input {
+      padding: 8px;
+      width: 300px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin-top: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 5px;
+      width: 50%;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Register Product</h2>
-  <label>Product ID</label>
+  <h2>Register a Product</h2>
+  <label for="productId">Product ID</label>
   <input type="text" id="productId">
-  <label>Name</label>
+  <label for="name">Product Name</label>
   <input type="text" id="name">
-  <label>Manufacturer</label>
+  <label for="manufacturer">Manufacturer</label>
   <input type="text" id="manufacturer">
-  <label>Manufacture Date (UNIX Timestamp)</label>
+  <label for="mDate">Manufacture Date (UNIX Timestamp)</label>
   <input type="number" id="mDate">
   <button onclick="registerProduct()">Register Product</button>
 
   <hr>
 
-  <h2>Verify Product</h2>
-  <label>Enter Product ID</label>
+  <h2>Verify a Product</h2>
+  <label for="verifyProductId">Product ID</label>
   <input type="text" id="verifyProductId">
-  <button onclick="verifyProduct()">Verify</button>
+  <button onclick="verifyProduct()">Verify Product</button>
 
   <div id="result"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
   <script>
-    // Your contract address and ABI
     const contractAddress = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B";
     const contractABI = [
       {
@@ -73,45 +103,66 @@
       }
     ];
 
-    // Setup Web3
-    if (typeof window.ethereum !== 'undefined') {
-      window.web3 = new Web3(window.ethereum);
-      window.ethereum.request({ method: 'eth_requestAccounts' });
-    } else {
-      alert("Please install MetaMask or use Remix VM with injected Web3.");
-    }
+    let web3;
+    let contract;
+    let userAccount;
 
-    const contract = new web3.eth.Contract(contractABI, contractAddress);
+    window.addEventListener('load', async () => {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        try {
+          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+          userAccount = accounts[0];
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          console.log("Connected account:", userAccount);
+        } catch (err) {
+          alert("Error connecting to wallet: " + err.message);
+        }
+      } else if (window.web3) {
+        web3 = new Web3(web3.currentProvider);
+        userAccount = (await web3.eth.getAccounts())[0];
+        contract = new web3.eth.Contract(contractABI, contractAddress);
+      } else {
+        alert("Please install MetaMask or use Remix JavaScript VM.");
+      }
+    });
 
     async function registerProduct() {
       const productId = document.getElementById("productId").value;
       const name = document.getElementById("name").value;
       const manufacturer = document.getElementById("manufacturer").value;
       const mDate = document.getElementById("mDate").value;
-      const accounts = await web3.eth.getAccounts();
 
-      contract.methods.registerProduct(productId, name, manufacturer, mDate)
-        .send({ from: accounts[0] })
-        .then(() => alert("✅ Product Registered!"))
-        .catch(err => alert("❌ Error: " + err.message));
+      if (!userAccount) {
+        alert("Account not connected.");
+        return;
+      }
+
+      try {
+        await contract.methods.registerProduct(productId, name, manufacturer, mDate)
+          .send({ from: userAccount });
+        alert("✅ Product registered successfully!");
+      } catch (err) {
+        alert("❌ Error: " + err.message);
+      }
     }
 
     async function verifyProduct() {
       const productId = document.getElementById("verifyProductId").value;
-
-      contract.methods.verifyProduct(productId).call()
-        .then(result => {
-          if (result.exists) {
-            document.getElementById("result").innerHTML = `
-              ✅ <strong>Product Found:</strong><br>
-              Name: ${result.name}<br>
-              Manufacturer: ${result.manufacturer}
-            `;
-          } else {
-            document.getElementById("result").innerText = "❌ Product not found.";
-          }
-        })
-        .catch(err => document.getElementById("result").innerText = "❌ Error: " + err.message);
+      try {
+        const result = await contract.methods.verifyProduct(productId).call();
+        if (result.exists) {
+          document.getElementById("result").innerHTML = `
+            ✅ <b>Product Found</b><br>
+            Name: ${result.name}<br>
+            Manufacturer: ${result.manufacturer}
+          `;
+        } else {
+          document.getElementById("result").innerText = "❌ Product not found.";
+        }
+      } catch (err) {
+        document.getElementById("result").innerText = "❌ Error: " + err.message;
+      }
     }
   </script>
 
