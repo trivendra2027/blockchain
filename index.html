@@ -2,110 +2,239 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Barcode Scanner</title>
+  <title>Product Registry & Verification with Barcode Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      text-align: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2f7;
+      margin: 0; padding: 20px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
     }
-
-    #reader {
-      width: 300px;
-      margin: auto;
+    h1, h2 { text-align: center; color: #333; }
+    section {
+      background: #fff;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-
-    input[type="text"] {
-      padding: 10px;
-      width: 80%;
+    label {
+      display: block;
       margin-top: 15px;
+      font-weight: 600;
+      color: #444;
     }
-
+    input, button {
+      width: 100%;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
+    }
+    input:focus { border-color: #007bff; outline: none; }
     button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
       cursor: pointer;
+      font-weight: 700;
+      margin-top: 20px;
     }
-
-    #camera-icon {
-      font-size: 40px;
-      margin-bottom: 10px;
+    button:disabled {
+      background-color: #9ec8ff;
+      cursor: not-allowed;
     }
-
-    .hidden {
-      display: none;
+    #qr-reader { width: 100%; margin-top: 10px; }
+    .success { color: green; background: #e0f5e9; }
+    .error { color: red; background: #fcebea; }
+    #connectWalletBtn {
+      background-color: #28a745;
+      color: white;
+      font-size: 1rem;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    #walletAddress {
+      text-align: center;
+      color: green;
+      font-weight: bold;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-  <div id="camera-icon">📷</div>
+  <h1>Blockchain Product Registry</h1>
 
-  <div id="reader"></div>
+  <button id="connectWalletBtn">🔗 Connect Wallet</button>
+  <p id="walletAddress"></p>
 
-  <input type="text" id="verifyInput" placeholder="Scanned Barcode Appears Here" readonly />
-  <br/>
+  <section>
+    <h2>Register New Product</h2>
+    <form id="registration-form">
+      <label>Product ID</label>
+      <input type="text" id="reg-productId" required placeholder="Unique Product ID" />
 
-  <button id="stopScannerBtn">🛑 Stop Scanner</button>
+      <label>Product Name</label>
+      <input type="text" id="reg-name" required />
+
+      <label>Manufacturer</label>
+      <input type="text" id="reg-manufacturer" required />
+
+      <label>Manufacture Date</label>
+      <input type="date" id="reg-manufactureDate" required />
+
+      <button type="submit" id="register-btn">Register Product</button>
+    </form>
+    <div id="registration-result"></div>
+  </section>
+
+  <section>
+    <h2>Verify Product</h2>
+    <label>Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" autocomplete="off" />
+    <button id="verify-btn" disabled>Verify Product</button>
+
+    <div id="verification-result"></div>
+    <div id="qr-reader"></div>
+  </section>
 
   <script>
-    const verifyInput = document.getElementById("verifyInput");
-    let lastScanned = "";
-    const html5QrCode = new Html5Qrcode("reader");
+    const contractABI = [/* paste your ABI here */];
+    const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
 
-    const config = {
-      fps: 10,
-      qrbox: 250,
-      rememberLastUsedCamera: true
-    };
+    let web3, contract, userAccount;
 
-    function onScanSuccess(decodedText, decodedResult) {
-      if (decodedText === lastScanned) return; // avoid duplicate
-      lastScanned = decodedText;
+    const regForm = document.getElementById('registration-form');
+    const registerBtn = document.getElementById('register-btn');
+    const registrationResult = document.getElementById('registration-result');
+    const verifyInput = document.getElementById('verify-productId');
+    const verifyBtn = document.getElementById('verify-btn');
+    const verificationResult = document.getElementById('verification-result');
 
-      console.log(`✅ Scanned: ${decodedText}`);
-      verifyInput.value = decodedText;
-
-      // You could auto-trigger blockchain product verification here
-    }
-
-    function onScanFailure(error) {
-      // Optional: log failed attempt
-      console.warn(`❌ Scan failed:`, error);
-      // Don't stop scanning on failure — default behavior already does this
-    }
-
-    // Start with back camera if available
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        const backCamera = devices.find(device => device.label.toLowerCase().includes("back"))
-                          || devices[0]; // fallback to first
-
-        html5QrCode.start(
-          { deviceId: { exact: backCamera.id } },
-          config,
-          onScanSuccess,
-          onScanFailure  // This makes it retry continuously
-        ).catch(err => {
-          console.error("Camera start error:", err);
-        });
+    document.getElementById("connectWalletBtn").addEventListener("click", async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          web3 = new Web3(window.ethereum);
+          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+          userAccount = accounts[0];
+          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          verifyBtn.disabled = false;
+        } catch (err) {
+          alert("Wallet connection rejected.");
+        }
       } else {
-        alert("No cameras found.");
+        alert("MetaMask not detected. Install MetaMask.");
       }
     });
 
-    // Stop button
-    document.getElementById("stopScannerBtn").addEventListener("click", () => {
-      html5QrCode.stop().then(() => {
-        console.log("Scanner stopped.");
-        document.getElementById("camera-icon").classList.add("hidden");
-        document.getElementById("reader").innerHTML = "";
-      }).catch(err => console.error("Failed to stop scanner", err));
-    });
-  </script>
+    regForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      registrationResult.textContent = "";
+      registerBtn.disabled = true;
+      registerBtn.textContent = "Registering...";
 
+      const productId = document.getElementById('reg-productId').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const manufacturer = document.getElementById('reg-manufacturer').value.trim();
+      const manufactureDateStr = document.getElementById('reg-manufactureDate').value;
+
+      if (!productId || !name || !manufacturer || !manufactureDateStr) {
+        registrationResult.textContent = "Please fill all fields.";
+        registerBtn.disabled = false;
+        registerBtn.textContent = "Register Product";
+        return;
+      }
+
+      const mDateTimestamp = Math.floor(new Date(manufactureDateStr).getTime() / 1000);
+
+      try {
+        await contract.methods.registerProduct(productId, name, manufacturer, mDateTimestamp)
+          .send({ from: userAccount });
+
+        registrationResult.textContent = "✅ Product registered successfully!";
+        registrationResult.className = "success";
+        regForm.reset();
+      } catch (err) {
+        registrationResult.textContent = "❌ Registration failed.";
+        registrationResult.className = "error";
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.textContent = "Register Product";
+      }
+    });
+
+    verifyBtn.addEventListener('click', async () => {
+      const productId = verifyInput.value.trim();
+      verificationResult.textContent = "";
+      verificationResult.className = "";
+      if (!productId) {
+        alert("Enter or scan a product ID.");
+        return;
+      }
+
+      try {
+        const result = await contract.methods.verifyProduct(productId).call({ from: userAccount });
+        if (result[0]) {
+          verificationResult.innerHTML = `<strong>✔️ Authentic product found!</strong><br>
+            <strong>Name:</strong> ${escapeHtml(result[1])}<br>
+            <strong>Manufacturer:</strong> ${escapeHtml(result[2])}`;
+          verificationResult.className = "success";
+        } else {
+          verificationResult.textContent = "❌ Product not found or counterfeit.";
+          verificationResult.className = "error";
+        }
+      } catch (err) {
+        verificationResult.textContent = "Error verifying product.";
+        verificationResult.className = "error";
+      }
+    });
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;',
+        '"': '&quot;', "'": '&#039;'
+      })[m]);
+    }
+
+    // Continuous QR Scanner Setup
+    const html5QrCode = new Html5Qrcode("qr-reader");
+
+    function onScanSuccess(decodedText) {
+      verifyInput.value = decodedText;
+      verifyBtn.click(); // Automatically verify scanned product
+      // camera remains active — no stop()
+    }
+
+    function onScanFailure(error) {
+      // Optional: log scan errors or ignore
+    }
+
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        const backCam = cameras.find(cam => cam.label.toLowerCase().includes('back')) || cameras[0];
+        html5QrCode.start(
+          backCam.id,
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanFailure
+        ).catch(err => alert("Unable to start camera: " + err));
+      } else {
+        alert("No camera found.");
+      }
+    }).catch(err => alert("Camera access error: " + err));
+  </script>
 </body>
 </html>
