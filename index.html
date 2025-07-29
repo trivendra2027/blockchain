@@ -1,38 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QR Product Registry & Verification</title>
+  <meta charset="UTF-8" />
+  <title>Tamper-Evident Product Registry & Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Web3.js -->
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- QR Code Scanner -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- SHA256 -->
+  <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/build/sha256.min.js"></script>
+  <!-- QR Code generator -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
   <style>
-    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
-    h1 { color: #333; }
-    form, .section { margin-bottom: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    input, button, select, label { display: block; margin: 10px 0; padding: 8px; width: 100%; max-width: 500px; }
-    #qr-reader { width: 300px; margin-top: 10px; }
-    .success { color: green; font-weight: bold; }
-    .error { color: red; font-weight: bold; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2f7;
+      margin: 0; padding: 20px;
+      max-width: 600px; margin: auto;
+    }
+    section {
+      background: #fff;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    h1, h2 { text-align: center; color: #333; }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #444;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
+      border: none;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    #walletAddress {
+      text-align: center;
+      color: green;
+      font-weight: bold;
+    }
+    #qr-reader {
+      width: 100%; margin-top: 10px;
+    }
+    .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
+    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    #qr-result {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      text-align: center;
+      word-break: break-word;
+    }
+    .flash-toggle {
+      background: #28a745;
+      color: #fff;
+      padding: 8px 12px;
+      margin-top: 10px;
+      display: inline-block;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
+    }
+    #qrcode {
+      margin-top: 10px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <h1>Product Registry & Verification</h1>
+  <h1>Tamper-Evident Product Registry</h1>
+  <button id="connectWalletBtn">🔗 Connect Wallet</button>
+  <p id="walletAddress"></p>
 
-  <div class="section">
-    <h2>Scan Product QR Code</h2>
-    <div id="qr-reader"></div>
-    <button onclick="startScanner()">Start Scanning</button>
-    <div id="qr-result"></div>
-    <div id="flash-toggle" style="display:none;">
-      <button onclick="toggleFlashlight()">Toggle Flash</button>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Register Product</h2>
+  <section>
+    <h2>Register New Product</h2>
     <form id="registration-form">
-      <label for="reg-productId">Product ID (from QR)</label>
+      <label for="reg-productId">Product ID</label>
       <input type="text" id="reg-productId" required />
 
       <label for="reg-name">Product Name</label>
@@ -44,34 +105,33 @@
       <label for="reg-manufactureDate">Manufacture Date</label>
       <input type="date" id="reg-manufactureDate" required />
 
-      <label for="reg-file">Product File (image/pdf)</label>
-      <input type="file" id="reg-file" accept=".png,.jpg,.jpeg,.pdf" />
+      <label for="reg-packageSealId">Packaging Seal ID (unique tamper-evident code)</label>
+      <input type="text" id="reg-packageSealId" required />
 
-      <button type="submit">Register</button>
+      <button type="submit" id="register-btn">Register Product</button>
     </form>
     <div id="registration-result"></div>
-  </div>
+    <canvas id="qrcode"></canvas>
+  </section>
 
-  <div class="section">
+  <section>
     <h2>Verify Product</h2>
-    <form id="verification-form">
-      <label for="verify-productId">Product ID</label>
-      <input type="text" id="verify-productId" required />
-      <button type="submit">Verify</button>
-    </form>
+    <label for="verify-productHash">Scan or Enter Product Hash</label>
+    <input type="text" id="verify-productHash" placeholder="Scan or enter product hash manually" />
+    <button id="verify-btn" disabled>Verify Product</button>
     <div id="verification-result"></div>
-  </div>
+    <div id="qr-result"></div>
+    <div id="qr-reader"></div>
+    <div class="flash-toggle" id="flash-toggle" style="display:none;">🔦 Toggle Flashlight</div>
+  </section>
 
   <script>
-    let web3, contract, userAccount;
-    const contractAddress = "0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d";
-    const abi = [
+    // === Smart contract ABI & address (replace with your own deployed contract) ===
+    const contractABI = [
       {
         "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" },
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "manufacturer", "type": "string" },
-          { "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
+          { "internalType": "string", "name": "productHash", "type": "string" },
+          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
         ],
         "name": "registerProduct",
         "outputs": [],
@@ -79,52 +139,70 @@
         "type": "function"
       },
       {
-        "inputs": [{ "internalType": "string", "name": "productId", "type": "string" }],
+        "inputs": [
+          { "internalType": "string", "name": "productHash", "type": "string" }
+        ],
         "name": "verifyProduct",
         "outputs": [
-          { "internalType": "bool", "name": "", "type": "bool" },
-          { "internalType": "string", "name": "", "type": "string" },
-          { "internalType": "string", "name": "", "type": "string" }
+          { "internalType": "bool", "name": "exists", "type": "bool" },
+          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
         ],
         "stateMutability": "view",
         "type": "function"
       }
     ];
+    const contractAddress = "0xd5dd56afccfd71ebe8a8bdb800150fed4c93d8c1"; // Replace with your contract address
 
-    window.addEventListener("load", async () => {
+    let web3, contract, userAccount;
+    let scanner, currentCameraId, flashOn = false;
+
+    // Connect Wallet button
+    document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const accounts = await web3.eth.getAccounts();
-        userAccount = accounts[0];
-        contract = new web3.eth.Contract(abi, contractAddress);
+        try {
+          web3 = new Web3(window.ethereum);
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          userAccount = accounts[0];
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
+          document.getElementById("verify-btn").disabled = false;
+        } catch (err) {
+          alert("User denied wallet connection.");
+        }
       } else {
-        alert("MetaMask not detected!");
+        alert("Please install MetaMask.");
       }
     });
 
+    // Register product form submit
     document.getElementById("registration-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const productId = document.getElementById("reg-productId").value;
-      const name = document.getElementById("reg-name").value;
-      const manufacturer = document.getElementById("reg-manufacturer").value;
-      const date = document.getElementById("reg-manufactureDate").value;
-      const fileInput = document.getElementById("reg-file");
-      const timestamp = Math.floor(new Date(date).getTime() / 1000);
+
+      const productId = document.getElementById('reg-productId').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const manufacturer = document.getElementById('reg-manufacturer').value.trim();
+      const manufactureDate = document.getElementById('reg-manufactureDate').value;
+      const packageSealId = document.getElementById('reg-packageSealId').value.trim();
+
+      const timestamp = Math.floor(new Date(manufactureDate).getTime() / 1000);
       const resultDiv = document.getElementById("registration-result");
-
+      const qrCanvas = document.getElementById("qrcode");
       resultDiv.textContent = "";
+      qrCanvas.getContext('2d').clearRect(0, 0, qrCanvas.width, qrCanvas.height);
 
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const base64File = await toBase64(file);
-        console.log("File data:", base64File);
-      }
+      // Create combined string and hash it
+      const combinedString = productId + "|" + name + "|" + manufacturer + "|" + manufactureDate + "|" + packageSealId;
+      const productHash = sha256(combinedString);
 
       try {
-        await contract.methods.registerProduct(productId, name, manufacturer, timestamp).send({ from: userAccount });
-        resultDiv.textContent = "✅ Product Registered!";
-        resultDiv.className = "success";
+        await contract.methods.registerProduct(productHash, timestamp).send({ from: userAccount });
+        resultDiv.innerHTML = ✅ Product Registered!<br>Product Hash:<br><code>${productHash}</code><br><br>Scan the QR code on packaging to verify authenticity.;
+
+        // Generate QR code with product hash
+        QRCode.toCanvas(qrCanvas, productHash, { width: 200 }, (error) => {
+          if (error) console.error(error);
+        });
+
         e.target.reset();
       } catch (err) {
         console.error(err);
@@ -133,85 +211,92 @@
       }
     });
 
-    function toBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-      });
-    }
-
-    document.getElementById("verification-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const productId = document.getElementById("verify-productId").value;
+    // Verify product button click
+    document.getElementById("verify-btn").addEventListener("click", async () => {
+      const scannedHash = document.getElementById("verify-productHash").value.trim();
       const resultDiv = document.getElementById("verification-result");
+      resultDiv.textContent = "";
+      resultDiv.className = "";
+
+      if (!scannedHash) {
+        resultDiv.textContent = "❌ Please enter or scan a product hash.";
+        resultDiv.className = "error";
+        return;
+      }
+
       try {
-        const res = await contract.methods.verifyProduct(productId).call();
-        if (res[0]) {
-          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
+        const res = await contract.methods.verifyProduct(scannedHash).call({ from: userAccount });
+        if (res.exists) {
+          const dateStr = new Date(res.mDate * 1000).toLocaleDateString();
+          resultDiv.innerHTML = ✅ <strong>Product Verified!</strong><br>Manufacture Date: ${dateStr};
           resultDiv.className = "success";
         } else {
-          resultDiv.innerHTML = `❌ <strong>Fake or Unregistered Product!</strong>`;
+          resultDiv.textContent = "❌ Warning: Product or packaging may be counterfeit or tampered.";
           resultDiv.className = "error";
         }
       } catch (err) {
-        resultDiv.textContent = "❌ Verification failed.";
+        console.error(err);
+        resultDiv.textContent = "❌ Verification error occurred.";
         resultDiv.className = "error";
       }
     });
 
-    let scanner;
-    let currentCameraId;
-
+    // Start QR code scanner to scan product hash
     async function startScanner() {
       scanner = new Html5Qrcode("qr-reader");
       try {
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length) {
-          const backCam = devices.find(c => c.label.toLowerCase().includes("back")) || devices[0];
+          const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
           currentCameraId = backCam.id;
+
           await scanner.start(
             { deviceId: { exact: currentCameraId } },
             { fps: 10, qrbox: 250 },
-            async (decodedText) => {
-              document.getElementById("verify-productId").value = decodedText;
-              document.getElementById("reg-productId").value = decodedText;
-              document.getElementById("qr-result").innerHTML = `📦 QR Detected: <strong>${decodedText}</strong>`;
+            (decodedText) => {
+              document.getElementById("verify-productHash").value = decodedText;
+              document.getElementById("verify-btn").click();
 
-              try {
-                const res = await contract.methods.verifyProduct(decodedText).call({ from: userAccount });
-                const resultDiv = document.getElementById("verification-result");
-                if (res[0]) {
-                  resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
-                  resultDiv.className = "success";
-                } else {
-                  resultDiv.innerHTML = `❌ <strong>Fake or Unregistered Product!</strong>`;
-                  resultDiv.className = "error";
-                }
-              } catch (err) {
-                document.getElementById("verification-result").textContent = "❌ Scan Verification Error";
-                document.getElementById("verification-result").className = "error";
+              const resultDiv = document.getElementById("qr-result");
+              if (/^https?:\/\//.test(decodedText)) {
+                resultDiv.innerHTML = 🔗 QR Detected:<br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>;
+              } else {
+                resultDiv.textContent = 📦 QR Detected: ${decodedText};
               }
             },
-            (error) => console.warn(error)
+            (error) => {
+              console.warn("QR Scan Error:", error);
+            }
           );
 
           const capabilities = await scanner.getRunningTrackCapabilities();
           if (capabilities.torch) {
             document.getElementById("flash-toggle").style.display = "block";
           }
+        } else {
+          document.getElementById("qr-result").innerText = "❌ No camera found!";
         }
       } catch (err) {
-        document.getElementById("qr-result").innerText = "❌ Unable to access camera.";
+        document.getElementById("qr-result").innerText = "❌ Unable to start scanner: " + err;
       }
     }
 
-    function toggleFlashlight() {
-      if (scanner && currentCameraId) {
-        scanner.applyVideoConstraints({ advanced: [{ torch: true }] });
+    // Toggle flashlight
+    document.getElementById("flash-toggle").addEventListener("click", async () => {
+      if (!scanner) return;
+      try {
+        flashOn = !flashOn;
+        await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
+        document.getElementById("flash-toggle").textContent = flashOn ? "🔦 Flashlight ON" : "🔦 Flashlight OFF";
+      } catch (err) {
+        console.error("Flashlight toggle error:", err);
       }
-    }
+    });
+
+    // Initialize scanner on page load
+    window.onload = () => {
+      startScanner();
+    };
   </script>
 </body>
 </html>
