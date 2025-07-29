@@ -2,18 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Tamper-Evident Product Registry & Verification</title>
+  <title>Product Registry & Verification</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
-  <!-- Web3.js -->
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
-  <!-- QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <!-- SHA256 -->
-  <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/build/sha256.min.js"></script>
-  <!-- QR Code generator -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -61,7 +53,7 @@
       width: 100%; margin-top: 10px;
     }
     .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
-    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; white-space: pre-line; }
     #qr-result {
       margin-top: 10px;
       font-weight: bold;
@@ -78,15 +70,16 @@
       border-radius: 5px;
       cursor: pointer;
       text-align: center;
+      user-select: none;
     }
-    #qrcode {
-      margin-top: 10px;
+    #qr-code {
       text-align: center;
+      margin-top: 15px;
     }
   </style>
 </head>
 <body>
-  <h1>Tamper-Evident Product Registry</h1>
+  <h1>Blockchain Product Registry</h1>
   <button id="connectWalletBtn">🔗 Connect Wallet</button>
   <p id="walletAddress"></p>
 
@@ -95,29 +88,31 @@
     <form id="registration-form">
       <label for="reg-productId">Product ID</label>
       <input type="text" id="reg-productId" required />
-
       <label for="reg-name">Product Name</label>
       <input type="text" id="reg-name" required />
-
       <label for="reg-manufacturer">Manufacturer</label>
       <input type="text" id="reg-manufacturer" required />
-
       <label for="reg-manufactureDate">Manufacture Date</label>
       <input type="date" id="reg-manufactureDate" required />
-
-      <label for="reg-packageSealId">Packaging Seal ID (unique tamper-evident code)</label>
-      <input type="text" id="reg-packageSealId" required />
-
+      <label for="reg-sealId">Seal ID (unique seal code)</label>
+      <input type="text" id="reg-sealId" required />
       <button type="submit" id="register-btn">Register Product</button>
     </form>
     <div id="registration-result"></div>
-    <canvas id="qrcode"></canvas>
   </section>
 
   <section>
     <h2>Verify Product</h2>
-    <label for="verify-productHash">Scan or Enter Product Hash</label>
-    <input type="text" id="verify-productHash" placeholder="Scan or enter product hash manually" />
+    <label for="verify-productId">Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Enter product ID" />
+    <label for="verify-name">Product Name</label>
+    <input type="text" id="verify-name" placeholder="Enter product name" />
+    <label for="verify-manufacturer">Manufacturer</label>
+    <input type="text" id="verify-manufacturer" placeholder="Enter manufacturer" />
+    <label for="verify-manufactureDate">Manufacture Date</label>
+    <input type="date" id="verify-manufactureDate" />
+    <label for="verify-sealId">Seal ID</label>
+    <input type="text" id="verify-sealId" placeholder="Enter seal ID" />
     <button id="verify-btn" disabled>Verify Product</button>
     <div id="verification-result"></div>
     <div id="qr-result"></div>
@@ -126,7 +121,6 @@
   </section>
 
   <script>
-    // === Smart contract ABI & address (replace with your own deployed contract) ===
     const contractABI = [
       {
         "inputs": [
@@ -145,18 +139,18 @@
         "name": "verifyProduct",
         "outputs": [
           { "internalType": "bool", "name": "exists", "type": "bool" },
-          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
+          { "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
         ],
         "stateMutability": "view",
         "type": "function"
       }
     ];
-    const contractAddress = "0xd5dd56afccfd71ebe8a8bdb800150fed4c93d8c1"; // Replace with your contract address
 
-    let web3, contract, userAccount;
-    let scanner, currentCameraId, flashOn = false;
+    const contractAddress = "YOUR_CONTRACT_ADDRESS_HERE";
 
-    // Connect Wallet button
+    let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
+
+    // Connect wallet and enable verify button
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
         try {
@@ -174,129 +168,169 @@
       }
     });
 
-    // Register product form submit
+    // Utility: generate product hash from product info + sealId
+    async function generateProductHash(productId, name, manufacturer, manufactureDate, sealId) {
+      const data = productId + "|" + name + "|" + manufacturer + "|" + manufactureDate + "|" + sealId;
+      return web3.utils.sha3(data);
+    }
+
+    // Register product handler
     document.getElementById("registration-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-
       const productId = document.getElementById('reg-productId').value.trim();
       const name = document.getElementById('reg-name').value.trim();
       const manufacturer = document.getElementById('reg-manufacturer').value.trim();
       const manufactureDate = document.getElementById('reg-manufactureDate').value;
-      const packageSealId = document.getElementById('reg-packageSealId').value.trim();
-
-      const timestamp = Math.floor(new Date(manufactureDate).getTime() / 1000);
+      const sealId = document.getElementById('reg-sealId').value.trim();
       const resultDiv = document.getElementById("registration-result");
-      const qrCanvas = document.getElementById("qrcode");
-      resultDiv.textContent = "";
-      qrCanvas.getContext('2d').clearRect(0, 0, qrCanvas.width, qrCanvas.height);
-
-      // Create combined string and hash it
-      const combinedString = productId + "|" + name + "|" + manufacturer + "|" + manufactureDate + "|" + packageSealId;
-      const productHash = sha256(combinedString);
-
-      try {
-        await contract.methods.registerProduct(productHash, timestamp).send({ from: userAccount });
-        resultDiv.innerHTML = ✅ Product Registered!<br>Product Hash:<br><code>${productHash}</code><br><br>Scan the QR code on packaging to verify authenticity.;
-
-        // Generate QR code with product hash
-        QRCode.toCanvas(qrCanvas, productHash, { width: 200 }, (error) => {
-          if (error) console.error(error);
-        });
-
-        e.target.reset();
-      } catch (err) {
-        console.error(err);
-        resultDiv.textContent = "❌ Registration failed.";
-        resultDiv.className = "error";
-      }
-    });
-
-    // Verify product button click
-    document.getElementById("verify-btn").addEventListener("click", async () => {
-      const scannedHash = document.getElementById("verify-productHash").value.trim();
-      const resultDiv = document.getElementById("verification-result");
       resultDiv.textContent = "";
       resultDiv.className = "";
 
-      if (!scannedHash) {
-        resultDiv.textContent = "❌ Please enter or scan a product hash.";
+      if (!productId || !name || !manufacturer || !manufactureDate || !sealId) {
+        resultDiv.textContent = "❌ Please fill all fields.";
         resultDiv.className = "error";
         return;
       }
 
       try {
-        const res = await contract.methods.verifyProduct(scannedHash).call({ from: userAccount });
-        if (res.exists) {
-          const dateStr = new Date(res.mDate * 1000).toLocaleDateString();
-          resultDiv.innerHTML = ✅ <strong>Product Verified!</strong><br>Manufacture Date: ${dateStr};
-          resultDiv.className = "success";
-        } else {
-          resultDiv.textContent = "❌ Warning: Product or packaging may be counterfeit or tampered.";
-          resultDiv.className = "error";
-        }
+        const productHash = await generateProductHash(productId, name, manufacturer, manufactureDate, sealId);
+        const timestamp = Math.floor(new Date(manufactureDate).getTime() / 1000);
+
+        await contract.methods.registerProduct(productHash, timestamp).send({ from: userAccount });
+
+        resultDiv.innerHTML = ✅ Product Registered!<br>Product Hash:<br><code>${productHash}</code>;
+        resultDiv.className = "success";
+
+        showQRCode(productHash);
+        e.target.reset();
       } catch (err) {
         console.error(err);
-        resultDiv.textContent = "❌ Verification error occurred.";
+        resultDiv.textContent = "❌ Registration failed. See console for details.";
         resultDiv.className = "error";
       }
     });
 
-    // Start QR code scanner to scan product hash
-    async function startScanner() {
-      scanner = new Html5Qrcode("qr-reader");
+    // Verify product handler
+    document.getElementById("verify-btn").addEventListener("click", async () => {
+      const productId = document.getElementById("verify-productId").value.trim();
+      const name = document.getElementById("verify-name").value.trim();
+      const manufacturer = document.getElementById("verify-manufacturer").value.trim();
+      const manufactureDate = document.getElementById("verify-manufactureDate").value;
+      const sealId = document.getElementById("verify-sealId").value.trim();
+      const resultDiv = document.getElementById("verification-result");
+      resultDiv.textContent = "";
+      resultDiv.className = "";
+
+      if (!productId || !name || !manufacturer || !manufactureDate || !sealId) {
+        resultDiv.textContent = "❌ Please fill all verification fields.";
+        resultDiv.className = "error";
+        return;
+      }
+
       try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length) {
-          const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
-          currentCameraId = backCam.id;
+        const productHash = await generateProductHash(productId, name, manufacturer, manufactureDate, sealId);
+        const [exists, timestamp] = await contract.methods.verifyProduct(productHash).call();
 
-          await scanner.start(
-            { deviceId: { exact: currentCameraId } },
-            { fps: 10, qrbox: 250 },
-            (decodedText) => {
-              document.getElementById("verify-productHash").value = decodedText;
-              document.getElementById("verify-btn").click();
-
-              const resultDiv = document.getElementById("qr-result");
-              if (/^https?:\/\//.test(decodedText)) {
-                resultDiv.innerHTML = 🔗 QR Detected:<br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>;
-              } else {
-                resultDiv.textContent = 📦 QR Detected: ${decodedText};
-              }
-            },
-            (error) => {
-              console.warn("QR Scan Error:", error);
-            }
-          );
-
-          const capabilities = await scanner.getRunningTrackCapabilities();
-          if (capabilities.torch) {
-            document.getElementById("flash-toggle").style.display = "block";
+        if (exists) {
+          const onChainDate = new Date(timestamp * 1000).toISOString().slice(0, 10);
+          if (onChainDate === manufactureDate) {
+            resultDiv.textContent = "✅ Product Verified as Genuine!";
+            resultDiv.className = "success";
+          } else {
+            resultDiv.textContent = ⚠ Product hash exists but manufacture date mismatch!\nOn-chain date: ${onChainDate};
+            resultDiv.className = "error";
           }
         } else {
-          document.getElementById("qr-result").innerText = "❌ No camera found!";
+          resultDiv.textContent = "❌ Product NOT found on blockchain.";
+          resultDiv.className = "error";
         }
       } catch (err) {
-        document.getElementById("qr-result").innerText = "❌ Unable to start scanner: " + err;
-      }
-    }
-
-    // Toggle flashlight
-    document.getElementById("flash-toggle").addEventListener("click", async () => {
-      if (!scanner) return;
-      try {
-        flashOn = !flashOn;
-        await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
-        document.getElementById("flash-toggle").textContent = flashOn ? "🔦 Flashlight ON" : "🔦 Flashlight OFF";
-      } catch (err) {
-        console.error("Flashlight toggle error:", err);
+        console.error(err);
+        resultDiv.textContent = "❌ Verification failed.";
+        resultDiv.className = "error";
       }
     });
 
-    // Initialize scanner on page load
-    window.onload = () => {
+    // QR code generation using Google Charts API
+    function showQRCode(data) {
+      let qrDiv = document.getElementById("qr-code");
+      if (!qrDiv) {
+        qrDiv = document.createElement("div");
+        qrDiv.id = "qr-code";
+        qrDiv.style.textAlign = "center";
+        document.getElementById("registration-result").appendChild(qrDiv);
+      }
+      qrDiv.innerHTML = <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(data)}" alt="QR Code" />;
+    }
+
+    // QR code scanner callbacks
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById("qr-result").textContent = "Scanned Hash:\n" + decodedText;
+      // Optional: autofill or trigger verification by scanned hash if you adapt your contract & UI
+    }
+
+    function onScanError(errorMessage) {
+      // console.warn(QR Scan Error: ${errorMessage});
+    }
+
+    // Start QR scanner with explicit camera permission prompt
+    async function startScanner() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Camera API not supported in your browser.");
+        return;
+      }
+      try {
+        // Explicitly request camera permission before starting scanner
+        await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch (err) {
+        alert("Camera permission denied. Please allow camera access to scan QR codes.");
+        return;
+      }
+
+      if (scanner) {
+        await scanner.stop();
+        scanner.clear();
+        scanner = null;
+      }
+      scanner = new Html5Qrcode("qr-reader");
+      const devices = await Html5Qrcode.getCameras();
+      if (devices && devices.length) {
+        currentCameraId = devices[0].id;
+        await scanner.start(
+          currentCameraId,
+          {
+            fps: 10,
+            qrbox: 250,
+            disableFlip: false,
+          },
+          onScanSuccess,
+          onScanError
+        );
+        if (devices.length > 1) {
+          document.getElementById('flash-toggle').style.display = 'inline-block';
+        }
+      } else {
+        alert("No cameras found on this device.");
+      }
+    }
+
+    // Flashlight toggle handler
+    document.getElementById("flash-toggle").addEventListener("click", async () => {
+      if (!scanner) return;
+
+      try {
+        flashOn = !flashOn;
+        await scanner.applyVideoConstraints({ torch: flashOn });
+      } catch (err) {
+        alert("Flashlight toggle not supported on this device.");
+        flashOn = false;
+      }
+    });
+
+    // Start scanner immediately on page load (optional, or trigger with a button)
+    window.addEventListener("load", () => {
       startScanner();
-    };
+    });
   </script>
 </body>
 </html>
