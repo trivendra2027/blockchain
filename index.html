@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Fake Product Identification - With Packed Photo</title>
+  <title>Fake Product Identification - With Packed Photo & Camera Access</title>
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://unpkg.com/nft.storage/dist/bundle.js"></script>
@@ -22,57 +22,67 @@
     .success { background: #39e2a0ee; color: #062; padding:12px; margin-top:9px; border-radius:8px;}
     .error   { background: #fb5858dd; color: #391313; padding:12px; margin-top:9px; border-radius:8px;}
     #walletAddress { text-align:center; color:#ffe7ba; margin-bottom:20px;}
-    #qr-reader { margin: 20px 0 8px 0; }
+    #qr-reader { margin: 20px 0 8px 0; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px #0009;}
     .flash-toggle { background:#ffa17f; color:#444; text-align:center; margin:14px auto 0 auto; border-radius:100px; font-weight:700; padding:8px 0; width:70%; cursor:pointer; }
     img.prod-image { max-width: 180px; border-radius:9px; margin:8px 0 10px 0; border:2px solid #fff3; box-shadow:0 4px 12px #111a;}
+    #start-camera-btn { background:#3a3a5f; color:#eee; border:none; border-radius:8px; padding: 10px; margin-bottom: 12px; cursor:pointer; width:100%; font-weight:bold; }
+    #start-camera-btn:disabled { background:#555577; cursor: not-allowed; }
     @media(max-width:625px){ .container {padding:12px;} }
   </style>
 </head>
 <body>
-<div class="container">
+<div class="container" role="main">
   <h1>Fake Product Identification</h1>
-  <button id="connectWalletBtn">🔗 Connect Wallet</button>
-  <div id="walletAddress"></div>
+  <button id="connectWalletBtn" aria-label="Connect Ethereum Wallet">🔗 Connect Wallet</button>
+  <div id="walletAddress" aria-live="polite"></div>
 
-  <div class="section">
-    <h2>Register New Product</h2>
+  <section class="section" aria-labelledby="register-title">
+    <h2 id="register-title">Register New Product</h2>
     <form id="registration-form" novalidate>
       <label for="reg-productId">Product ID</label>
-      <input type="text" id="reg-productId" name="productId" required/>
+      <input type="text" id="reg-productId" name="productId" required aria-required="true" />
       <label for="reg-name">Product Name</label>
-      <input type="text" id="reg-name" name="name" required/>
+      <input type="text" id="reg-name" name="name" required aria-required="true" />
       <label for="reg-manufacturer">Manufacturer</label>
-      <input type="text" id="reg-manufacturer" name="manufacturer" required/>
+      <input type="text" id="reg-manufacturer" name="manufacturer" required aria-required="true" />
       <label for="reg-manufactureDate">Manufacture Date</label>
-      <input type="date" id="reg-manufactureDate" name="manufactureDate" required/>
+      <input type="date" id="reg-manufactureDate" name="manufactureDate" required aria-required="true" />
       <label for="reg-photo">Photo When Packed</label>
-      <input type="file" accept="image/*" id="reg-photo" required />
+      <input type="file" accept="image/*" id="reg-photo" required aria-required="true" />
       <button type="submit" id="register-btn">Register Product</button>
     </form>
-    <div id="registration-result"></div>
-  </div>
+    <div id="registration-result" role="alert" aria-live="polite"></div>
+  </section>
 
-  <div class="section">
-    <h2>Verify Product</h2>
-    <label for="verify-productId">Product ID (scan from phone body/enter)</label>
-    <input type="text" id="verify-productId" placeholder="Scan or enter product ID"/>
+  <section class="section" aria-labelledby="verify-title">
+    <h2 id="verify-title">Verify Product</h2>
+
+    <label for="verify-productId">Product ID (scan from phone body or enter)</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" aria-label="Product ID input" autocomplete="off"/>
     <button id="verify-btn" disabled>Verify Product</button>
-    <div id="verification-result"></div>
-    <div id="qr-result"></div>
-    <div id="qr-reader"></div>
-    <div class="flash-toggle" id="flash-toggle" tabindex="0" aria-pressed="false" style="display:none">🔦 Toggle Flashlight</div>
+
+    <button id="start-camera-btn" aria-label="Start camera to scan QR code">Start Camera</button>
+    <div id="qr-reader" aria-label="QR Code Camera Scanner"></div>
+    <div class="flash-toggle" id="flash-toggle" tabindex="0" aria-pressed="false" style="display:none" role="button" aria-label="Toggle Flashlight">🔦 Toggle Flashlight</div>
+
+    <div id="qr-result" aria-live="polite"></div>
+
+    <div id="verification-result" role="alert" aria-live="polite"></div>
+
     <div id="user-report-section" style="display:none;margin-top:15px;">
       <label for="user-report">Describe any issues:</label>
-      <input type="text" id="user-report" placeholder="e.g. wrong model, damaged, box opened">
+      <input type="text" id="user-report" placeholder="e.g. wrong model, damaged, box opened" aria-label="User issue description"/>
       <button id="report-btn">Report to Flipkart</button>
-      <div id="report-result"></div>
+      <div id="report-result" role="alert" aria-live="polite"></div>
     </div>
+
     <button id="save-proof-btn" style="display:none;margin-top:10px;">Download Verification Proof</button>
-  </div>
+  </section>
 </div>
+
 <script>
-/==== CONTRACT SETTINGS ===========/
-// Replace with your real contract ABI and address:
+/* ==== SETTINGS - Replace these ==== */
+// Your contract ABI here (must support registerProduct and verifyProduct with imageHash, and optional logReport)
 const contractABI = [ 
   {
     "inputs": [
@@ -87,193 +97,257 @@ const contractABI = [
     "stateMutability": "nonpayable", "type": "function"
   },
   {
-    "inputs": [{ "internalType": "string", "name": "productId", "type": "string" }],
+    "inputs": [{"internalType": "string", "name": "productId", "type": "string"}],
     "name": "verifyProduct",
     "outputs": [
-      { "internalType": "bool", "name": "exists", "type": "bool" },
-      { "internalType": "string", "name": "name", "type": "string" },
-      { "internalType": "string", "name": "manufacturer", "type": "string" },
-      { "internalType": "string", "name": "imageHash", "type": "string" }
+      {"internalType": "bool", "name": "exists", "type": "bool"},
+      {"internalType": "string", "name": "name", "type": "string"},
+      {"internalType": "string", "name": "manufacturer", "type": "string"},
+      {"internalType": "string", "name": "imageHash", "type": "string"}
     ],
     "stateMutability": "view", "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "string", "name": "productId", "type": "string" },
-      { "internalType": "string", "name": "remarks", "type": "string" }
+      {"internalType": "string", "name": "productId", "type": "string"},
+      {"internalType": "string", "name": "remarks", "type": "string"}
     ],
     "name": "logReport",
     "outputs": [],
     "stateMutability": "nonpayable", "type": "function"
   }
 ];
-const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836"; // UPDATE!
-const NFT_STORAGE_TOKEN = "YOUR_NFT_STORAGE_API_KEY"; // GET FROM https://nft.storage/
-/============================/
 
-let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
+// Contract deployed address
+const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836"; // <<< UPDATE THIS
+// nft.storage API key - get a free key from https://nft.storage/
+const NFT_STORAGE_TOKEN = "YOUR_NFT_STORAGE_API_KEY"; // <<< UPDATE THIS
 
-document.getElementById("connectWalletBtn").onclick = async () => {
+/* ==== VARIABLES & ELEMENTS ==== */
+let web3, contract, currentAccount;
+let scanner, currentCameraId, flashOn = false;
+
+const connectWalletBtn = document.getElementById("connectWalletBtn");
+const walletAddressDiv = document.getElementById("walletAddress");
+const registerForm = document.getElementById("registration-form");
+const registrationResult = document.getElementById("registration-result");
+const verifyBtn = document.getElementById("verify-btn");
+const verifyProductIdInput = document.getElementById("verify-productId");
+const verificationResult = document.getElementById("verification-result");
+const userReportSection = document.getElementById("user-report-section");
+const userReportInput = document.getElementById("user-report");
+const reportBtn = document.getElementById("report-btn");
+const reportResult = document.getElementById("report-result");
+const saveProofBtn = document.getElementById("save-proof-btn");
+const qrReaderDiv = document.getElementById("qr-reader");
+const qrResultDiv = document.getElementById("qr-result");
+const flashToggleBtn = document.getElementById("flash-toggle");
+const startCameraBtn = document.getElementById("start-camera-btn");
+
+/* ==== CONNECT WALLET ==== */
+connectWalletBtn.onclick = async () => {
   if (window.ethereum) {
     try {
       web3 = new Web3(window.ethereum);
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      userAccount = accounts[0];
+      currentAccount = accounts[0];
       contract = new web3.eth.Contract(contractABI, contractAddress);
-      document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
-      document.getElementById("verify-btn").disabled = false;
-    } catch (err) {
-      alert("User denied wallet connection.");
+      walletAddressDiv.textContent = "Connected: " + currentAccount;
+      verifyBtn.disabled = false;
+    } catch (error) {
+      alert("Wallet connection denied.");
     }
   } else {
-    alert("Please install MetaMask.");
+    alert("Please install MetaMask to use this app.");
   }
 };
 
-// Registration with packed photo
-document.getElementById("registration-form").onsubmit = async (e) => {
+/* ==== REGISTER PRODUCT - Upload photo to IPFS and register on chain ==== */
+registerForm.onsubmit = async (e) => {
   e.preventDefault();
+  registrationResult.textContent = "";
+  registrationResult.className = "";
+
   const productId = document.getElementById('reg-productId').value.trim();
-  const name      = document.getElementById('reg-name').value.trim();
-  const manu      = document.getElementById('reg-manufacturer').value.trim();
-  const date      = document.getElementById('reg-manufactureDate').value;
+  const name = document.getElementById('reg-name').value.trim();
+  const manufacturer = document.getElementById('reg-manufacturer').value.trim();
+  const date = document.getElementById('reg-manufactureDate').value;
   const photoFile = document.getElementById('reg-photo').files[0];
-  const resultDiv = document.getElementById("registration-result");
-  const timestamp = Math.floor(new Date(date).getTime() / 1000);
-  resultDiv.textContent = ""; resultDiv.className = "";
-  if (!productId || !name || !manu || !date) {
-    resultDiv.textContent = "❌ Please fill all fields.";
-    resultDiv.className = "error"; return;
+
+  if (!productId || !name || !manufacturer || !date) {
+    registrationResult.textContent = "❌ Please fill all fields.";
+    registrationResult.className = "error";
+    return;
   }
   if (!photoFile) {
-    resultDiv.textContent = "❌ Please upload the product photo!";
-    resultDiv.className = "error"; return;
-  }
-  let imageHash;
-  try {
-    const client = new NFTStorage.NFTStorage({ token: NFT_STORAGE_TOKEN });
-    imageHash = await client.storeBlob(photoFile); // returns IPFS hash
-  } catch (err) {
-    resultDiv.textContent = "❌ Failed to upload image to IPFS.";
-    resultDiv.className = "error";
+    registrationResult.textContent = "❌ Please upload the product photo!";
+    registrationResult.className = "error";
     return;
   }
+
   try {
-    await contract.methods.registerProduct(productId, name, manu, timestamp, imageHash)
-      .send({ from: userAccount });
-    resultDiv.textContent = "✅ Product Registered!";
-    resultDiv.className = "success";
-    e.target.reset();
+    const client = new NFTStorage.NFTStorage({ token: NFT_STORAGE_TOKEN });
+    const ipfsHash = await client.storeBlob(photoFile); // Returns IPFS hash string
+    const timestamp = Math.floor(new Date(date).getTime() / 1000);
+
+    await contract.methods.registerProduct(productId, name, manufacturer, timestamp, ipfsHash)
+      .send({ from: currentAccount });
+
+    registrationResult.textContent = "✅ Product Registered!";
+    registrationResult.className = "success";
+    registerForm.reset();
   } catch (err) {
-    resultDiv.textContent = "❌ Registration failed.";
-    resultDiv.className = "error";
+    console.error(err);
+    registrationResult.textContent = "❌ Error registering product or uploading photo.";
+    registrationResult.className = "error";
   }
 };
 
-document.getElementById("verify-btn").onclick = async () => {
-  const pid = document.getElementById("verify-productId").value.trim();
-  const resultDiv = document.getElementById("verification-result");
-  const saveBtn = document.getElementById("save-proof-btn");
-  const userReportSec = document.getElementById("user-report-section");
-  resultDiv.textContent = ""; resultDiv.className = "";
-  saveBtn.style.display = "none"; userReportSec.style.display = "none";
+/* ==== VERIFY PRODUCT ==== */
+verifyBtn.onclick = async () => {
+  verificationResult.textContent = "";
+  verificationResult.className = "";
+  saveProofBtn.style.display = "none";
+  userReportSection.style.display = "none";
+  reportResult.textContent = "";
+  reportResult.className = "";
+
+  const pid = verifyProductIdInput.value.trim();
   if (!pid) {
-    resultDiv.textContent = "❌ Please enter or scan a product ID.";
-    resultDiv.className = "error";
+    verificationResult.textContent = "❌ Please enter or scan a product ID.";
+    verificationResult.className = "error";
     return;
   }
+
   try {
-    const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
+    const res = await contract.methods.verifyProduct(pid).call({ from: currentAccount });
+    // res => [exists, name, manufacturer, imageHash]
     if (res[0]) {
-      // res = [exists, name, manufacturer, imageHash]
-      resultDiv.innerHTML = `
+      verificationResult.innerHTML = `
         ✅ <strong>Valid Product</strong><br>
         <strong>Name:</strong> ${res[1]}<br>
         <strong>Manufacturer:</strong> ${res[2]}<br>
-        ${res[3] ? <img src="<https://ipfs.io/ipfs/${res>[3]}" alt="Packed Product Photo" class="prod-image"/><br> : ""}
-        <span style="color:#ffe089;">Check this image: Was your delivered phone/packing exactly like this? If not, report below.</span>
+        ${res[3] ? <img class="prod-image" src="<https://ipfs.io/ipfs/${res>[3]}" alt="Packed Product Photo"/> : ""}
+        <p style="color:#ffe089;">Check this image and details: Does this match your delivered product and packing?</p>
       `;
-      resultDiv.className = "success";
-      setTimeout(()=>{userReportSec.style.display = "block"; saveBtn.style.display = "inline-block";},500);
+      verificationResult.className = "success";
+      // Show reporting UI and save proof button
+      userReportSection.style.display = "block";
+      saveProofBtn.style.display = "inline-block";
     } else {
-      resultDiv.textContent = "❌ Product not found! Please refuse delivery or scan from your phone's body QR/serial.";
-      resultDiv.className = "error";
+      verificationResult.textContent = "❌ Product not found! Please refuse delivery or scan from your phone's body QR/serial.";
+      verificationResult.className = "error";
     }
-  } catch (err) {
-    resultDiv.textContent = "❌ Error verifying product.";
-    resultDiv.className = "error";
+  } catch (e) {
+    console.error(e);
+    verificationResult.textContent = "❌ Error verifying product.";
+    verificationResult.className = "error";
   }
 };
 
-document.getElementById("save-proof-btn").onclick = function() {
-  const prodId = document.getElementById("verify-productId").value;
-  const verified = document.getElementById("verification-result").innerText;
-  const time = new Date().toLocaleString();
-  const content = Verification for Product ID: ${prodId}\n${verified}\nChecked at: ${time};
-  const blob = new Blob([content], {type:'text/plain'});
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = product-verification-${prodId}.txt;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+/* ==== USER REPORT ==== */
+reportBtn.onclick = async () => {
+  reportResult.textContent = "";
+  reportResult.className = "";
 
-document.getElementById("report-btn").onclick = async () => {
-  const productId = document.getElementById("verify-productId").value.trim();
-  const remarks   = document.getElementById("user-report").value.trim();
-  const resDiv    = document.getElementById("report-result");
-  resDiv.textContent = ""; resDiv.className = "";
+  const productId = verifyProductIdInput.value.trim();
+  const remarks = userReportInput.value.trim();
+
   if (!remarks) {
-    resDiv.textContent = "Please describe the issue!";
+    reportResult.textContent = "❌ Please describe the issue!";
     return;
   }
+
   try {
-    await contract.methods.logReport(productId, remarks).send({from:userAccount});
-    resDiv.textContent = "✅ Submitted! Support will contact you if needed.";
-    resDiv.className = "success";
-  } catch(e) {
-    resDiv.textContent = "❌ Failed submitting! Please try again.";
-    resDiv.className = "error";
+    await contract.methods.logReport(productId, remarks).send({ from: currentAccount });
+    reportResult.textContent = "✅ Issue reported! Support will contact you if necessary.";
+    reportResult.className = "success";
+    userReportInput.value = "";
+  } catch (err) {
+    console.error(err);
+    reportResult.textContent = "❌ Failed to submit report. Please try again.";
+    reportResult.className = "error";
   }
 };
 
-async function startScanner() {
-  scanner = new Html5Qrcode("qr-reader");
+/* ==== DOWNLOAD VERIFICATION PROOF ==== */
+saveProofBtn.onclick = () => {
+  const productId = verifyProductIdInput.value.trim();
+  const verifiedText = verificationResult.innerText || verificationResult.textContent || "";
+  const time = new Date().toLocaleString();
+  const content = Verification Proof\nProduct ID: ${productId}\n\n${verifiedText}\n\nChecked at: ${time};
+  const blob = new Blob([content], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = verification-proof-${productId}.txt;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+/* ==== CAMERA & QR SCANNING ==== */
+startCameraBtn.onclick = async () => {
+  if (!scanner) {
+    scanner = new Html5Qrcode("qr-reader");
+  }
+  startCameraBtn.disabled = true;
+  qrResultDiv.textContent = "";
   try {
     const devices = await Html5Qrcode.getCameras();
-    if (devices && devices.length) {
-      const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
-      currentCameraId = backCam.id;
-      await scanner.start(
-        { deviceId: { exact: currentCameraId } },
-        { fps: 12, qrbox: 190 },
-        (decodedText) => {
-          document.getElementById("verify-productId").value = decodedText;
-          document.getElementById("verify-btn").click();
-          document.getElementById("qr-result").textContent = "📦 QR Scanned: "+decodedText;
-        },
-        ()=>{} // ignore scan errors
-      );
-      const caps = await scanner.getRunningTrackCapabilities?.();
-      if (caps && caps.torch) document.getElementById("flash-toggle").style.display = "block";
+    if (!devices || devices.length === 0) {
+      qrResultDiv.textContent = "❌ No cameras found on this device.";
+      startCameraBtn.disabled = false;
+      return;
+    }
+    // Pick the back camera if available, else first camera
+    const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
+    currentCameraId = backCam.id;
+
+    await scanner.start(
+      { deviceId: { exact: currentCameraId } },
+      { fps: 10, qrbox: 250 },
+      (decodedText) => {
+        verifyProductIdInput.value = decodedText;
+        qrResultDiv.textContent = "📦 QR Scanned: " + decodedText;
+        verifyBtn.click();
+      },
+      (errorMessage) => {
+        // console.log("QR scan error:", errorMessage);
+      }
+    );
+
+    // Show flash toggle if supported
+    const capabilities = await scanner.getRunningTrackCapabilities?.();
+    if (capabilities && capabilities.torch) {
+      flashToggleBtn.style.display = "block";
     } else {
-      document.getElementById("qr-result").innerText = "❌ No camera found!";
+      flashToggleBtn.style.display = "none";
     }
   } catch (err) {
-    document.getElementById("qr-result").innerText = "❌ Unable to access camera.";
+    console.error(err);
+    qrResultDiv.textContent = "❌ Unable to start camera: " + err.message;
+    startCameraBtn.disabled = false;
   }
 };
-document.getElementById("flash-toggle").onclick = async () => {
-  if (scanner && currentCameraId) {
-    flashOn = !flashOn;
-    try {
-      await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
-      document.getElementById("flash-toggle").setAttribute("aria-pressed", flashOn);
-    } catch (err) { alert("⚠ Flashlight not supported on this device."); }
+
+/* ==== FLASHLIGHT TOGGLE ==== */
+flashToggleBtn.onclick = async () => {
+  if (!scanner || !currentCameraId) return;
+  flashOn = !flashOn;
+  try {
+    await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
+    flashToggleBtn.setAttribute("aria-pressed", flashOn);
+  } catch (err) {
+    alert("Flashlight not supported on this device.");
   }
 };
-window.onload = startScanner;
+
+/* ==== On page load ==== */
+window.onload = () => {
+  verifyBtn.disabled = true;
+  flashToggleBtn.style.display = "none";
+  qrResultDiv.textContent = "";
+};
 </script>
 </body>
 </html>
