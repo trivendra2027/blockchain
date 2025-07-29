@@ -82,7 +82,6 @@
 
 <script>
 /* ==== SETTINGS - Replace these ==== */
-// Your contract ABI here (must support registerProduct and verifyProduct with imageHash, and optional logReport)
 const contractABI = [ 
   {
     "inputs": [
@@ -117,13 +116,12 @@ const contractABI = [
     "stateMutability": "nonpayable", "type": "function"
   }
 ];
-
 // Contract deployed address
 const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836"; // <<< UPDATE THIS
-// nft.storage API key - get a free key from https://nft.storage/
+// nft.storage API key - get from https://nft.storage/
 const NFT_STORAGE_TOKEN = "YOUR_NFT_STORAGE_API_KEY"; // <<< UPDATE THIS
 
-/* ==== VARIABLES & ELEMENTS ==== */
+/* ==== APP VARIABLES ==== */
 let web3, contract, currentAccount;
 let scanner, currentCameraId, flashOn = false;
 
@@ -162,7 +160,7 @@ connectWalletBtn.onclick = async () => {
   }
 };
 
-/* ==== REGISTER PRODUCT - Upload photo to IPFS and register on chain ==== */
+/* ==== REGISTER PRODUCT (Photo upload to IPFS/NFT.Storage) ==== */
 registerForm.onsubmit = async (e) => {
   e.preventDefault();
   registrationResult.textContent = "";
@@ -181,6 +179,11 @@ registerForm.onsubmit = async (e) => {
   }
   if (!photoFile) {
     registrationResult.textContent = "❌ Please upload the product photo!";
+    registrationResult.className = "error";
+    return;
+  }
+  if (!web3 || !currentAccount) {
+    registrationResult.textContent = "❌ Please connect your wallet first.";
     registrationResult.className = "error";
     return;
   }
@@ -218,20 +221,28 @@ verifyBtn.onclick = async () => {
     verificationResult.className = "error";
     return;
   }
+  if (!web3 || !currentAccount) {
+    verificationResult.textContent = "❌ Please connect your wallet first.";
+    verificationResult.className = "error";
+    return;
+  }
 
   try {
     const res = await contract.methods.verifyProduct(pid).call({ from: currentAccount });
     // res => [exists, name, manufacturer, imageHash]
     if (res[0]) {
-      verificationResult.innerHTML = `
-        ✅ <strong>Valid Product</strong><br>
+      let imageHtml = "";
+      if (res[3] && res[3] !== "") {
+        imageHtml = `<img class="prod-image" src="<https://ipfs.io/ipfs/${res>[3]}" alt="Packed Product Photo"/>`;
+      }
+      verificationResult.innerHTML = 
+        `✅ <strong>Valid Product</strong><br>
         <strong>Name:</strong> ${res[1]}<br>
         <strong>Manufacturer:</strong> ${res[2]}<br>
-        ${res[3] ? <img class="prod-image" src="<https://ipfs.io/ipfs/${res>[3]}" alt="Packed Product Photo"/> : ""}
+        ${imageHtml}
         <p style="color:#ffe089;">Check this image and details: Does this match your delivered product and packing?</p>
-      `;
+        `;
       verificationResult.className = "success";
-      // Show reporting UI and save proof button
       userReportSection.style.display = "block";
       saveProofBtn.style.display = "inline-block";
     } else {
@@ -245,7 +256,7 @@ verifyBtn.onclick = async () => {
   }
 };
 
-/* ==== USER REPORT ==== */
+/* ==== REPORT ISSUE ==== */
 reportBtn.onclick = async () => {
   reportResult.textContent = "";
   reportResult.className = "";
@@ -257,7 +268,11 @@ reportBtn.onclick = async () => {
     reportResult.textContent = "❌ Please describe the issue!";
     return;
   }
-
+  if (!web3 || !currentAccount) {
+    reportResult.textContent = "❌ Please connect your wallet first.";
+    reportResult.className = "error";
+    return;
+  }
   try {
     await contract.methods.logReport(productId, remarks).send({ from: currentAccount });
     reportResult.textContent = "✅ Issue reported! Support will contact you if necessary.";
@@ -275,11 +290,11 @@ saveProofBtn.onclick = () => {
   const productId = verifyProductIdInput.value.trim();
   const verifiedText = verificationResult.innerText || verificationResult.textContent || "";
   const time = new Date().toLocaleString();
-  const content = Verification Proof\nProduct ID: ${productId}\n\n${verifiedText}\n\nChecked at: ${time};
+  const content = `Verification Proof\nProduct ID: ${productId}\n\n${verifiedText}\n\nChecked at: ${time}\n`;
   const blob = new Blob([content], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = verification-proof-${productId}.txt;
+  a.download = `verification-proof-${productId}.txt`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -299,7 +314,6 @@ startCameraBtn.onclick = async () => {
       startCameraBtn.disabled = false;
       return;
     }
-    // Pick the back camera if available, else first camera
     const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
     currentCameraId = backCam.id;
 
@@ -312,7 +326,7 @@ startCameraBtn.onclick = async () => {
         verifyBtn.click();
       },
       (errorMessage) => {
-        // console.log("QR scan error:", errorMessage);
+        // handle scan error if needed
       }
     );
 
