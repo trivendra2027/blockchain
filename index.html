@@ -54,6 +54,7 @@
     }
     .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
     .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    .error strong { color: red; font-size: 1.1rem; }
     #qr-result {
       margin-top: 10px;
       font-weight: bold;
@@ -199,7 +200,7 @@
           resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
           resultDiv.className = "success";
         } else {
-          resultDiv.textContent = "❌ Product not found!";
+          resultDiv.innerHTML = `❌ <strong>Fake or Unregistered Product!</strong>`;
           resultDiv.className = "error";
         }
       } catch (err) {
@@ -219,15 +220,23 @@
           await scanner.start(
             { deviceId: { exact: currentCameraId } },
             { fps: 10, qrbox: 250 },
-            (decodedText) => {
+            async (decodedText) => {
               document.getElementById("verify-productId").value = decodedText;
-              document.getElementById("verify-btn").click();
+              document.getElementById("qr-result").innerHTML = `📦 QR Detected: <strong>${decodedText}</strong>`;
 
-              const resultDiv = document.getElementById("qr-result");
-              if (/^https?:\/\//.test(decodedText)) {
-                resultDiv.innerHTML = `🔗 QR Detected:<br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>`;
-              } else {
-                resultDiv.textContent = `📦 QR Detected: ${decodedText}`;
+              try {
+                const res = await contract.methods.verifyProduct(decodedText).call({ from: userAccount });
+                const resultDiv = document.getElementById("verification-result");
+                if (res[0]) {
+                  resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
+                  resultDiv.className = "success";
+                } else {
+                  resultDiv.innerHTML = `❌ <strong>Fake or Unregistered Product!</strong>`;
+                  resultDiv.className = "error";
+                }
+              } catch (err) {
+                document.getElementById("verification-result").innerHTML = `❌ <strong>Error during verification</strong>`;
+                document.getElementById("verification-result").className = "error";
               }
             },
             (error) => {
