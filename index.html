@@ -1,85 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Camera + MetaMask Access</title>
+  <meta charset="UTF-8" />
+  <title>Product Registry & Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
-      background: #1c1f2b;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', sans-serif;
-      padding: 20px;
-      text-align: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2f7;
+      margin: 0; padding: 20px;
+      max-width: 600px; margin: auto;
+    }
+    section {
+      background: #fff;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    h1, h2 { text-align: center; color: #333; }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #444;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
     }
     button {
-      padding: 12px 20px;
-      margin: 10px;
-      font-size: 1rem;
-      background: #22e4ac;
-      color: #111;
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
       border: none;
-      border-radius: 8px;
+      margin-top: 20px;
       cursor: pointer;
     }
-    #qr-reader {
-      margin-top: 20px;
-      display: none;
+    #walletAddress {
+      text-align: center;
+      color: green;
+      font-weight: bold;
     }
-    .output {
-      margin-top: 20px;
-      font-size: 1rem;
-      color: #80ffaa;
+    #qr-reader {
+      width: 100%; margin-top: 10px;
+    }
+    .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
+    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    #qr-result {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      text-align: center;
+      word-break: break-word;
+    }
+    .flash-toggle {
+      background: #28a745;
+      color: #fff;
+      padding: 8px 12px;
+      margin-top: 10px;
+      display: inline-block;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
     }
   </style>
 </head>
 <body>
+  <h1>Blockchain Product Registry</h1>
+  <button id="connectWalletBtn">🔗 Connect Wallet</button>
+  <p id="walletAddress"></p>
 
-  <h1>Camera + MetaMask Access Demo</h1>
+  <section>
+    <h2>Register New Product</h2>
+    <form id="registration-form">
+      <label for="reg-productId">Product ID</label>
+      <input type="text" id="reg-productId" required />
+      <label for="reg-name">Product Name</label>
+      <input type="text" id="reg-name" required />
+      <label for="reg-manufacturer">Manufacturer</label>
+      <input type="text" id="reg-manufacturer" required />
+      <label for="reg-manufactureDate">Manufacture Date</label>
+      <input type="date" id="reg-manufactureDate" required />
+      <button type="submit" id="register-btn">Register Product</button>
+    </form>
+    <div id="registration-result"></div>
+  </section>
 
-  <button onclick="connectWallet()">Connect MetaMask</button>
-  <button onclick="startQR()">Start QR Scanner</button>
-
-  <div class="output" id="wallet-address">Wallet: Not connected</div>
-  <div id="qr-reader" style="width: 300px; margin: auto;"></div>
-  <div class="output" id="scan-result">Scanned QR Code: None</div>
+  <section>
+    <h2>Verify Product</h2>
+    <label for="verify-productId">Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
+    <button id="verify-btn" disabled>Verify Product</button>
+    <div id="verification-result"></div>
+    <div id="qr-result"></div>
+    <div id="qr-reader"></div>
+    <div class="flash-toggle" id="flash-toggle" style="display:none;">🔦 Toggle Flashlight</div>
+  </section>
 
   <script>
-    async function connectWallet() {
+    const contractABI = [
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
+          { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
+          { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" }
+        ],
+        "name": "ProductRegistered",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" },
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "manufacturer", "type": "string" },
+          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
+        ],
+        "name": "registerProduct",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" }
+        ],
+        "name": "verifyProduct",
+        "outputs": [
+          { "internalType": "bool", "name": "exists", "type": "bool" },
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "manufacturer", "type": "string" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+
+    const contractAddress = "0xd5dd56afccfd71ebe8a8bdb800150fed4c93d8c1";
+
+    let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
+
+    document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
         try {
+          web3 = new Web3(window.ethereum);
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          const wallet = accounts[0];
-          document.getElementById('wallet-address').innerText = "Wallet: " + wallet;
+          userAccount = accounts[0];
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
+          document.getElementById("verify-btn").disabled = false;
         } catch (err) {
-          alert("MetaMask connection denied.");
+          alert("User denied wallet connection.");
         }
       } else {
-        alert("MetaMask is not installed.");
+        alert("Please install MetaMask.");
+      }
+    });
+
+    document.getElementById("registration-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const productId = document.getElementById('reg-productId').value;
+      const name = document.getElementById('reg-name').value;
+      const manufacturer = document.getElementById('reg-manufacturer').value;
+      const date = document.getElementById('reg-manufactureDate').value;
+      const timestamp = Math.floor(new Date(date).getTime() / 1000);
+      const resultDiv = document.getElementById("registration-result");
+      resultDiv.textContent = "";
+
+      try {
+        await contract.methods.registerProduct(productId, name, manufacturer, timestamp).send({ from: userAccount });
+        resultDiv.textContent = "✅ Product Registered!";
+        resultDiv.className = "success";
+        e.target.reset();
+      } catch (err) {
+        console.error(err);
+        resultDiv.textContent = "❌ Registration failed.";
+        resultDiv.className = "error";
+      }
+    });
+
+    document.getElementById("verify-btn").addEventListener("click", async () => {
+      const pid = document.getElementById("verify-productId").value.trim();
+      const resultDiv = document.getElementById("verification-result");
+      resultDiv.textContent = "";
+      resultDiv.className = "";
+
+      try {
+        const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
+        if (res[0]) {
+          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
+          resultDiv.className = "success";
+        } else {
+          resultDiv.textContent = "❌ Product not found!";
+          resultDiv.className = "error";
+        }
+      } catch (err) {
+        resultDiv.textContent = "❌ Error verifying product.";
+        resultDiv.className = "error";
+      }
+    });
+
+    async function startScanner() {
+      scanner = new Html5Qrcode("qr-reader");
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length) {
+          const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
+          currentCameraId = backCam.id;
+
+          await scanner.start(
+            { deviceId: { exact: currentCameraId } },
+            { fps: 10, qrbox: 250 },
+            (decodedText) => {
+              document.getElementById("verify-productId").value = decodedText;
+              document.getElementById("verify-btn").click();
+
+              const resultDiv = document.getElementById("qr-result");
+              if (/^https?:\/\//.test(decodedText)) {
+                resultDiv.innerHTML = `🔗 QR Detected:<br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>`;
+              } else {
+                resultDiv.textContent = `📦 QR Detected: ${decodedText}`;
+              }
+            },
+            (error) => {
+              console.warn("QR Scan Error:", error);
+            }
+          );
+
+          const capabilities = await scanner.getRunningTrackCapabilities();
+          if (capabilities.torch) {
+            document.getElementById("flash-toggle").style.display = "block";
+          }
+        } else {
+          document.getElementById("qr-result").innerText = "❌ No camera found!";
+        }
+      } catch (err) {
+        console.error("Scanner start error:", err);
+        document.getElementById("qr-result").innerText = "❌ Unable to access camera.";
       }
     }
 
-    async function startQR() {
-      const qrDiv = document.getElementById("qr-reader");
-      qrDiv.style.display = "block";
-
-      const qrScanner = new Html5Qrcode("qr-reader");
-      await qrScanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 }
-        },
-        qrCodeMessage => {
-          document.getElementById("scan-result").innerText = "Scanned QR Code: " + qrCodeMessage;
-          qrScanner.stop();
-        },
-        errorMessage => {
-          // silently ignore errors (optional)
+    document.getElementById("flash-toggle").addEventListener("click", async () => {
+      if (scanner && currentCameraId) {
+        flashOn = !flashOn;
+        try {
+          await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
+        } catch (err) {
+          alert("⚠ Flashlight not supported on this device.");
         }
-      );
-    }
-  </script>
+      }
+    });
 
+    window.onload = startScanner;
+  </script>
 </body>
 </html>
