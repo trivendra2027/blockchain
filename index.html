@@ -23,6 +23,7 @@
     border-radius: 6px;
     border: none;
   }
+  button { cursor: pointer; font-weight:bold; }
   #qr-reader {
     margin-top: 10px;
   }
@@ -34,57 +35,53 @@
     color: #f44336;
     margin-top: 12px;
   }
+  hr { opacity: 0.2; border-width:2px;}
 </style>
 </head>
 <body>
-
 <h1>Seal Verified Product - QR Seal Tracker</h1>
 
 <button id="connectWalletBtn">Connect Wallet</button>
 <p id="walletAddress"></p>
 
 <hr>
-
 <section>
   <h2>Register Product with Seal QR (Owner Only)</h2>
-  <input type="text" id="reg-packageQR" placeholder="Package Seal QR Code (unique)" />
-  <input type="text" id="reg-name" placeholder="Product Name" />
-  <input type="text" id="reg-manufacturer" placeholder="Manufacturer" />
+  <input type="text" id="reg-packageQR" placeholder="Package Seal QR Code (unique)" autocomplete="off"/>
+  <input type="text" id="reg-name" placeholder="Product Name" autocomplete="off"/>
+  <input type="text" id="reg-manufacturer" placeholder="Manufacturer" autocomplete="off"/>
   <input type="date" id="reg-manufactureDate" placeholder="Manufacture Date" />
   <button id="reg-btn">Register Product + Seal</button>
   <p id="reg-status"></p>
 </section>
 
 <hr>
-
 <section>
   <h2>Verify Seal (Before Delivery)</h2>
-  <input type="text" id="verify-packageQR" placeholder="Scan or Enter Package Seal QR" />
+  <input type="text" id="verify-packageQR" placeholder="Scan or Enter Package Seal QR" autocomplete="off"/>
   <button id="verify-btn">Verify Seal Status</button>
   <p id="verify-status"></p>
 </section>
 
 <hr>
-
 <section>
   <h2>Open Seal (Delivery Mark)</h2>
-  <input type="text" id="open-packageQR" placeholder="Scan or Enter Package Seal QR" />
+  <input type="text" id="open-packageQR" placeholder="Scan or Enter Package Seal QR" autocomplete="off"/>
   <button id="open-btn">Open Seal (Mark Broken)</button>
   <p id="open-status"></p>
 </section>
 
 <hr>
-
 <section>
   <h2>QR Code Scanner</h2>
   <button id="start-camera-btn">Start Camera to Scan QR</button>
   <div id="qr-reader" style="width:100%;"></div>
-  <p>Scanned QR will be filled automatically in verification or other inputs.</p>
+  <p>Scanned QR will be filled automatically in all relevant fields.</p>
 </section>
 
 <script>
-(async () => {
-  // Replace these with your deployed contract info
+(() => {
+  // ==== CONTRACT INFO (edit address to your real deployed contract) ====
   const contractABI = [
     {
       "inputs": [
@@ -119,12 +116,12 @@
       "type":"function"
     }
   ];
+  const contractAddress = "0xYourContractAddressHere"; // <--- SET YOURS
 
-  const contractAddress = "0xYourContractAddressHere"; // update this
-
-  // Elements
+  // ========== DOM ELEMENTS ==========
   const connectWalletBtn = document.getElementById("connectWalletBtn");
   const walletAddressP = document.getElementById("walletAddress");
+
   const regPackageQRInput = document.getElementById("reg-packageQR");
   const regNameInput = document.getElementById("reg-name");
   const regManuInput = document.getElementById("reg-manufacturer");
@@ -143,71 +140,69 @@
   const startCameraBtn = document.getElementById("start-camera-btn");
   const qrReaderDiv = document.getElementById("qr-reader");
 
-  let web3, contract, account;
+  // ========== APP STATE ==========
+  let web3 = null, contract = null, account = null;
+  let html5QrcodeScanner = null;
 
-  // Connect wallet
+  // === Connect Wallet ===
   connectWalletBtn.onclick = async () => {
     if (window.ethereum) {
       try {
         web3 = new Web3(window.ethereum);
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         account = accounts[0];
-        walletAddressP.textContent = "Connected: " + account;
         contract = new web3.eth.Contract(contractABI, contractAddress);
+        walletAddressP.textContent = "Connected: " + account;
       } catch (e) {
         alert("Wallet connection failed: "+e.message);
       }
     } else {
-      alert("Please install MetaMask");
+      alert("Please install MetaMask!");
     }
   };
 
-  // Register product + seal
+  // === Register Product with Seal ===
   regBtn.onclick = async () => {
     if (!contract || !account) {
-      alert("Connect wallet first.");
-      return;
+      regStatus.textContent = "Connect wallet first."; regStatus.className = "error"; return;
     }
     const packageQR = regPackageQRInput.value.trim();
     const name = regNameInput.value.trim();
     const manufacturer = regManuInput.value.trim();
-    const manufactureDateStr = regDateInput.value;
-    if (!packageQR || !name || !manufacturer || !manufactureDateStr) {
-      regStatus.textContent = "Fill all fields!";
-      regStatus.className = "error";
-      return;
+    const dateStr = regDateInput.value;
+    if (!packageQR || !name || !manufacturer || !dateStr) {
+      regStatus.textContent = "Fill all fields!"; regStatus.className = "error"; return;
     }
-    const manufactureDate = Math.floor(new Date(manufactureDateStr).getTime()/1000);
+    const manufactureDate = Math.floor(new Date(dateStr).getTime() / 1000);
+    regBtn.disabled = true;
+    regStatus.textContent = "Registering...";
     try {
-      regStatus.textContent = "Registering...";
-      await contract.methods.registerProduct(packageQR, name, manufacturer, manufactureDate)
-        .send({ from: account });
+      await contract.methods.registerProduct(packageQR, name, manufacturer, manufactureDate).send({ from: account });
       regStatus.textContent = "✅ Registered successfully.";
       regStatus.className = "success";
+      regPackageQRInput.value = regNameInput.value = regManuInput.value = regDateInput.value = "";
     } catch (e) {
-      regStatus.textContent = "Registration failed: " + e.message;
+      regStatus.textContent = "Registration failed: " + (e.data?.message || e.message);
       regStatus.className = "error";
     }
+    regBtn.disabled = false;
   };
 
-  // Verify seal (before delivery)
+  // === Verify Seal ===
   verifyBtn.onclick = async () => {
     if (!contract || !account) {
-      alert("Connect wallet first.");
-      return;
+      verifyStatus.textContent = "Connect wallet first."; verifyStatus.className = "error"; return;
     }
     const packageQR = verifyPackageQRInput.value.trim();
     if (!packageQR) {
-      verifyStatus.textContent = "Enter package QR to verify.";
-      verifyStatus.className = "error";
-      return;
+      verifyStatus.textContent = "Enter package QR to verify."; verifyStatus.className = "error"; return;
     }
+    verifyBtn.disabled = true;
+    verifyStatus.textContent = "Verifying...";
     try {
-      verifyStatus.textContent = "Verifying...";
       const res = await contract.methods.verifySeal(packageQR).call();
-      // res = [exists, name, manufacturer, manufactureDate, sealOpened]
       if (res.exists) {
-        let txt = Product Name: ${res.name}\nManufacturer: ${res.manufacturer}\nManufacture Date: ${new Date(res.manufactureDate * 1000).toLocaleDateString()}\n;
+        let txt = `Product Name: ${res.name}\nManufacturer: ${res.manufacturer}\nManufacture Date: ${new Date(res.manufactureDate * 1000).toLocaleDateString()}\n`;
         txt += res.sealOpened ? "❌ Seal Broken - Package tampered\n" : "✅ Seal Intact - Package sealed";
         verifyStatus.textContent = txt;
         verifyStatus.className = res.sealOpened ? "error" : "success";
@@ -216,71 +211,69 @@
         verifyStatus.className = "error";
       }
     } catch (e) {
-      verifyStatus.textContent = "Verification error: " + e.message;
+      verifyStatus.textContent = "Verification error: " + (e.data?.message || e.message);
       verifyStatus.className = "error";
     }
+    verifyBtn.disabled = false;
   };
 
-  // Open seal (mark seal opened at delivery)
+  // === Open Seal ===
   openBtn.onclick = async () => {
     if (!contract || !account) {
-      alert("Connect wallet first.");
-      return;
+      openStatus.textContent = "Connect wallet first."; openStatus.className = "error"; return;
     }
     const packageQR = openPackageQRInput.value.trim();
     if (!packageQR) {
-      openStatus.textContent = "Enter package QR to open seal.";
-      openStatus.className = "error";
-      return;
+      openStatus.textContent = "Enter package QR to open seal."; openStatus.className = "error"; return;
     }
+    openBtn.disabled = true;
+    openStatus.textContent = "Opening seal...";
     try {
-      openStatus.textContent = "Opening seal...";
       await contract.methods.openSeal(packageQR).send({ from: account });
       openStatus.textContent = "✅ Seal marked as opened.";
       openStatus.className = "success";
     } catch (e) {
-      openStatus.textContent = "Failed to open seal: " + e.message;
+      openStatus.textContent = "Failed to open seal: " + (e.data?.message || e.message);
       openStatus.className = "error";
     }
+    openBtn.disabled = false;
   };
 
-  // QR Scanner
-  let html5QrcodeScanner;
+  // === QR Scanner w/ camera access ===
   startCameraBtn.onclick = async () => {
     startCameraBtn.disabled = true;
     qrReaderDiv.innerHTML = "";
+    if (html5QrcodeScanner) {
+      try { await html5QrcodeScanner.stop(); } catch {}
+    }
     html5QrcodeScanner = new Html5Qrcode("qr-reader");
     try {
       const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length) {
-        const backCamera = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
-        await html5QrcodeScanner.start(
-          { deviceId: { exact: backCamera.id } },
-          { fps: 10, qrbox: 250 },
-          qrCodeMessage => {
-            // Stop scanning once decoded
-            html5QrcodeScanner.stop();
-            startCameraBtn.disabled = false;
-            qrReaderDiv.innerHTML = <b>Scanned QR:</b> ${qrCodeMessage};
-            // Fill all QR inputs with scanned code for convenience
-            regPackageQRInput.value = qrCodeMessage;
-            verifyPackageQRInput.value = qrCodeMessage;
-            openPackageQRInput.value = qrCodeMessage;
-          },
-          errorMessage => {
-            // ignore or log scan errors silently
-          }
-        );
-      } else {
-        qrReaderDiv.textContent = "No camera devices found.";
-        startCameraBtn.disabled = false;
-      }
+      if (!devices || !devices.length) throw new Error("No camera devices found.");
+      const backCamera = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+      await html5QrcodeScanner.start(
+        { deviceId: { exact: backCamera.id } },
+        { fps: 10, qrbox: 250 },
+        qrCodeMessage => {
+          html5QrcodeScanner.stop();
+          startCameraBtn.disabled = false;
+          qrReaderDiv.innerHTML = `<b>Scanned QR:</b> ${qrCodeMessage}`;
+          // Set all QR fields with scan for user convenience:
+          regPackageQRInput.value = qrCodeMessage;
+          verifyPackageQRInput.value = qrCodeMessage;
+          openPackageQRInput.value = qrCodeMessage;
+        },
+        errorMessage => {
+          // silently ignore
+        }
+      );
     } catch (err) {
       qrReaderDiv.textContent = "Camera start failed: " + err;
       startCameraBtn.disabled = false;
     }
   };
-})();
+
+})(); // End IIFE
 </script>
 </body>
 </html>
