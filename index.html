@@ -2,192 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Anti-Fake Product Proof</title>
-  <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <title>Camera + MetaMask Access</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #1b1f3a;
-      color: #fff;
-      padding: 1rem;
-      margin: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #2a2f4a;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-    h1 {
+      background: #1c1f2b;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 20px;
       text-align: center;
-      margin-bottom: 1.5rem;
-    }
-    .section {
-      margin-bottom: 2rem;
-      background: #353b5a;
-      padding: 1rem;
-      border-radius: 8px;
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-    }
-    input[type="text"], input[type="file"], input[type="date"] {
-      width: 100%;
-      padding: 8px;
-      margin-top: 4px;
-      border-radius: 4px;
-      border: none;
-      font-size: 1rem;
     }
     button {
-      padding: 10px 16px;
+      padding: 12px 20px;
+      margin: 10px;
       font-size: 1rem;
-      margin-top: 10px;
-      cursor: pointer;
-      border-radius: 6px;
+      background: #22e4ac;
+      color: #111;
       border: none;
-      background-color: #4caf50;
-      color: white;
+      border-radius: 8px;
+      cursor: pointer;
     }
-    .prod-photo {
-      width: 120px;
-      height: auto;
-      border: 1px solid #aaa;
-      margin: 5px;
+    #qr-reader {
+      margin-top: 20px;
+      display: none;
     }
-    .compare-box {
-      display: flex;
-      gap: 20px;
-      margin-top: 10px;
+    .output {
+      margin-top: 20px;
+      font-size: 1rem;
+      color: #80ffaa;
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>🛡️ Anti-Fake Product Proof System</h1>
-  <button id="connectWalletBtn">🔗 Connect Wallet</button>
-  <div id="walletAddress"></div>
 
-  <section class="section">
-    <h2>📦 Packing: Register with QR and Seal</h2>
-    <label for="reg-sealQR">Seal QR Code</label>
-    <input id="reg-sealQR" type="text" placeholder="Enter or scan Seal QR code">
+  <h1>Camera + MetaMask Access Demo</h1>
 
-    <label for="reg-name">Product Name</label>
-    <input id="reg-name" type="text" placeholder="e.g. Smartwatch XYZ">
+  <button onclick="connectWallet()">Connect MetaMask</button>
+  <button onclick="startQR()">Start QR Scanner</button>
 
-    <label for="reg-manufacturer">Manufacturer</label>
-    <input id="reg-manufacturer" type="text" placeholder="e.g. Tech Corp Ltd.">
+  <div class="output" id="wallet-address">Wallet: Not connected</div>
+  <div id="qr-reader" style="width: 300px; margin: auto;"></div>
+  <div class="output" id="scan-result">Scanned QR Code: None</div>
 
-    <label for="reg-date">Manufacture Date</label>
-    <input id="reg-date" type="date">
-
-    <label for="reg-photo">Photo of Factory-Sealed Pack</label>
-    <input id="reg-photo" type="file" accept="image/*">
-
-    <button id="reg-btn">✅ Register (On Chain)</button>
-    <div id="reg-status"></div>
-  </section>
-
-  <section class="section">
-    <h2>🚚 Delivery: Seal Scan + Delivery Photo</h2>
-    <label for="deliv-sealQR">Scan or Enter Seal QR Code</label>
-    <input id="deliv-sealQR" type="text" placeholder="Scan or type Seal QR">
-    <button id="start-delivqr-btn">📷 Start QR Scan</button>
-    <div id="qr-reader"></div>
-
-    <label for="deliv-photo">Delivery Photo (camera)</label>
-    <input id="deliv-photo" type="file" accept="image/*">
-
-    <button id="deliv-btn">📬 Mark as Delivered (Open Seal)</button>
-    <div id="deliv-status"></div>
-  </section>
-
-  <section class="section">
-    <h2>🔍 Customer/Support: Verify Product</h2>
-    <label for="verif-sealQR">Enter Seal QR Code</label>
-    <input id="verif-sealQR" type="text" placeholder="Type the Seal QR to verify">
-    <button id="verif-btn">🔎 Check Package Info</button>
-    <div id="verif-result"></div>
-  </section>
-</div>
-
-<script>
-  const contractAddress = "0xYourContractAddressHere";
-  const contractABI = [...] // Add your ABI here
-  const NFT_STORAGE_TOKEN = "YOUR_NFT_STORAGE_API_KEY";
-  let web3, contract, userAccount;
-
-  document.getElementById("connectWalletBtn").onclick = async () => {
-    if (window.ethereum) {
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      web3 = new Web3(window.ethereum);
-      const accounts = await web3.eth.getAccounts();
-      userAccount = accounts[0];
-      document.getElementById("walletAddress").textContent = "Connected: " + userAccount;
-      contract = new web3.eth.Contract(contractABI, contractAddress);
-    } else {
-      alert("Please install MetaMask!");
+  <script>
+    async function connectWallet() {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const wallet = accounts[0];
+          document.getElementById('wallet-address').innerText = "Wallet: " + wallet;
+        } catch (err) {
+          alert("MetaMask connection denied.");
+        }
+      } else {
+        alert("MetaMask is not installed.");
+      }
     }
-  };
 
-  async function uploadToIPFS(file) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("https://api.nft.storage/upload", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${NFT_STORAGE_TOKEN}` },
-      body: formData
-    });
-    const data = await res.json();
-    return data.value.cid;
-  }
+    async function startQR() {
+      const qrDiv = document.getElementById("qr-reader");
+      qrDiv.style.display = "block";
 
-  document.getElementById("reg-btn").onclick = async () => {
-    const qr = document.getElementById("reg-sealQR").value;
-    const name = document.getElementById("reg-name").value;
-    const manu = document.getElementById("reg-manufacturer").value;
-    const date = document.getElementById("reg-date").value;
-    const file = document.getElementById("reg-photo").files[0];
+      const qrScanner = new Html5Qrcode("qr-reader");
+      await qrScanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        qrCodeMessage => {
+          document.getElementById("scan-result").innerText = "Scanned QR Code: " + qrCodeMessage;
+          qrScanner.stop();
+        },
+        errorMessage => {
+          // silently ignore errors (optional)
+        }
+      );
+    }
+  </script>
 
-    const cid = await uploadToIPFS(file);
-    await contract.methods.register(qr, name, manu, date, cid).send({ from: userAccount });
-    document.getElementById("reg-status").innerText = "✅ Registered!";
-  };
-
-  document.getElementById("deliv-btn").onclick = async () => {
-    const qr = document.getElementById("deliv-sealQR").value;
-    const file = document.getElementById("deliv-photo").files[0];
-    const cid = await uploadToIPFS(file);
-    await contract.methods.deliver(qr, cid).send({ from: userAccount });
-    document.getElementById("deliv-status").innerText = "📬 Delivery updated!";
-  };
-
-  document.getElementById("verif-btn").onclick = async () => {
-    const qr = document.getElementById("verif-sealQR").value;
-    const res = await contract.methods.getProduct(qr).call();
-    const out = document.getElementById("verif-result");
-    let html = `<b>Product:</b> ${res.name} <br><b>Manufacturer:</b> ${res.manufacturer} <br><b>Date:</b> ${res.manufactureDate}<br>`;
-    html += `<div class="compare-box">`;
-    html += `<div><b>Packed</b><br><img class="prod-photo" src="https://ipfs.io/ipfs/${res.packedPhoto}" alt="Packed Photo"/></div>`;
-    html += `<div><b>Delivered</b><br><img class="prod-photo" src="https://ipfs.io/ipfs/${res.deliveredPhoto}" alt="Delivered Photo"/></div>`;
-    html += `</div>`;
-    out.innerHTML = html;
-  };
-
-  document.getElementById("start-delivqr-btn").onclick = async () => {
-    const qrScanner = new Html5Qrcode("qr-reader");
-    await qrScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qr => {
-      document.getElementById("deliv-sealQR").value = qr;
-      document.getElementById("qr-reader").innerHTML = `<span style="color:#82ffa2;">Scanned:</span> ${qr}`;
-      qrScanner.stop();
-    });
-  };
-</script>
 </body>
 </html>
