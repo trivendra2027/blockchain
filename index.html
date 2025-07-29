@@ -1,366 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Fake Product Identification - With Packed Photo & Camera Access</title>
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://unpkg.com/nft.storage/dist/bundle.js"></script>
-  <style>
-    body { background: #262642; font-family: Montserrat, Arial, sans-serif; margin: 0; color: #eee; min-height: 100vh;}
-    .container { background: #1e1e2f; max-width: 600px; margin: 32px auto; padding: 28px 22px; border-radius: 14px; box-shadow: 0 8px 32px #000a; }
-    h1 { text-align: center; color: #ff6f61; margin-bottom: 24px;}
-    .section { margin-bottom: 30px; background: #292944; border-radius:12px; box-shadow: 0 5px 15px #0009; padding: 18px 16px;}
-    label { font-weight: bold; margin-right: 6px; }
-    input, button { border-radius: 7px; font-size: 1rem; }
-    input[type="text"], input[type="date"] { width:98%; padding:9px 12px; border: none; margin-bottom: 8px;}
-    input[type="file"]::-webkit-file-upload-button { cursor:pointer; }
-    input[type="file"] { background:#eee; color:#222; padding: 7px;}
-    button { background:#ff6f61; color:#fff; border:none; font-weight: bold; padding: 10px 0; width:100%; margin-top:12px; cursor:pointer;}
-    button:disabled { background: #a94c43; }
-    .success { background: #39e2a0ee; color: #062; padding:12px; margin-top:9px; border-radius:8px;}
-    .error   { background: #fb5858dd; color: #391313; padding:12px; margin-top:9px; border-radius:8px;}
-    #walletAddress { text-align:center; color:#ffe7ba; margin-bottom:20px;}
-    #qr-reader { margin: 20px 0 8px 0; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px #0009;}
-    .flash-toggle { background:#ffa17f; color:#444; text-align:center; margin:14px auto 0 auto; border-radius:100px; font-weight:700; padding:8px 0; width:70%; cursor:pointer; }
-    img.prod-image { max-width: 180px; border-radius:9px; margin:8px 0 10px 0; border:2px solid #fff3; box-shadow:0 4px 12px #111a;}
-    #start-camera-btn { background:#3a3a5f; color:#eee; border:none; border-radius:8px; padding: 10px; margin-bottom: 12px; cursor:pointer; width:100%; font-weight:bold; }
-    #start-camera-btn:disabled { background:#555577; cursor: not-allowed; }
-    @media(max-width:625px){ .container {padding:12px;} }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Product Delivery Proof - Scan & Photo Verification</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://unpkg.com/nft.storage/dist/bundle.js"></script>
+<style>
+body { background: #232645; color: #eee; font-family: Montserrat, Arial, sans-serif; }
+.container { background: #181727; max-width: 660px; margin: 32px auto; border-radius:18px; padding:36px 26px; box-shadow:0 8px 34px #000b; }
+h1 { text-align: center; color: #33deb6; margin-bottom:24px; }
+.section { background: #1e2845; margin-bottom: 38px; border-radius:11px; box-shadow:0 4px 18px #0007; padding:19px 17px;}
+label { font-weight: 600; margin-right: 6px; }
+input, button, select { border-radius: 8px; font-size:1rem;}
+input[type="text"], input[type="date"] { width:98%; padding:9px 12px; border:none; margin-bottom: 8px;}
+input[type="file"]::-webkit-file-upload-button { cursor:pointer; }
+input[type="file"] { background:#eee; color:#222; padding:7px;}
+button { background:#33deb6; color:#111; border:none; font-weight:700; padding: 11px 0; width:100%; margin-top:13px; cursor:pointer; }
+button:disabled { background: #519a8a; }
+.success { background: #6df4beee; color: #084; padding:13px; margin-top:9px; border-radius:10px;}
+.error   { background: #f46b6bdd; color: #411313; padding:13px; margin-top:9px; border-radius:10px;}
+#qr-reader { margin: 20px 0 8px 0; border-radius: 12px; box-shadow:0 6px 20px #0009; }
+img.prod-image, img.deliver-image { max-width:190px; border-radius:10px; margin:10px auto; border:2px solid #fff3; box-shadow:0 4px 12px #000a;}
+#start-camera-btn, #start-delivcam-btn { background:#344c9e; color:#fff; border:none; border-radius:7px; padding:10px; margin-bottom:12px; cursor:pointer; width:100%; font-weight:bold; }
+.flash-toggle { background:#ffbf8f; color:#333; text-align:center; border-radius:100px; font-weight:700; padding:8px 0; width:70%; margin:14px auto 0 auto; cursor:pointer;}
+@media (max-width: 720px) { .container{padding:12px;} }
+</style>
 </head>
 <body>
 <div class="container" role="main">
-  <h1>Fake Product Identification</h1>
-  <button id="connectWalletBtn" aria-label="Connect Ethereum Wallet">🔗 Connect Wallet</button>
-  <div id="walletAddress" aria-live="polite"></div>
-
-  <section class="section" aria-labelledby="register-title">
-    <h2 id="register-title">Register New Product</h2>
+  <h1>Product Delivery Verification</h1>
+  <button id="connectWalletBtn" aria-label="Connect wallet">🔗 Connect Wallet</button>
+  <div id="walletAddress"></div>
+  <!-- Section A: Registration at warehouse/manufacturer -->
+  <section class="section">
+    <h2>Register Product (Packing Stage)</h2>
     <form id="registration-form" novalidate>
-      <label for="reg-productId">Product ID</label>
-      <input type="text" id="reg-productId" name="productId" required aria-required="true" />
+      <label for="reg-productid">Product ID</label>
+      <input type="text" id="reg-productid" required />
       <label for="reg-name">Product Name</label>
-      <input type="text" id="reg-name" name="name" required aria-required="true" />
+      <input type="text" id="reg-name" required />
       <label for="reg-manufacturer">Manufacturer</label>
-      <input type="text" id="reg-manufacturer" name="manufacturer" required aria-required="true" />
+      <input type="text" id="reg-manufacturer" required />
       <label for="reg-manufactureDate">Manufacture Date</label>
-      <input type="date" id="reg-manufactureDate" name="manufactureDate" required aria-required="true" />
-      <label for="reg-photo">Photo When Packed</label>
-      <input type="file" accept="image/*" id="reg-photo" required aria-required="true" />
+      <input type="date" id="reg-manufactureDate" required />
+      <label for="reg-pack-photo">Photo When Packed</label>
+      <input type="file" accept="image/*" id="reg-pack-photo" required />
       <button type="submit" id="register-btn">Register Product</button>
     </form>
-    <div id="registration-result" role="alert" aria-live="polite"></div>
+    <div id="registration-result"></div>
   </section>
-
-  <section class="section" aria-labelledby="verify-title">
-    <h2 id="verify-title">Verify Product</h2>
-
-    <label for="verify-productId">Product ID (scan from phone body or enter)</label>
-    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" aria-label="Product ID input" autocomplete="off"/>
-    <button id="verify-btn" disabled>Verify Product</button>
-
-    <button id="start-camera-btn" aria-label="Start camera to scan QR code">Start Camera</button>
-    <div id="qr-reader" aria-label="QR Code Camera Scanner"></div>
-    <div class="flash-toggle" id="flash-toggle" tabindex="0" aria-pressed="false" style="display:none" role="button" aria-label="Toggle Flashlight">🔦 Toggle Flashlight</div>
-
-    <div id="qr-result" aria-live="polite"></div>
-
-    <div id="verification-result" role="alert" aria-live="polite"></div>
-
-    <div id="user-report-section" style="display:none;margin-top:15px;">
-      <label for="user-report">Describe any issues:</label>
-      <input type="text" id="user-report" placeholder="e.g. wrong model, damaged, box opened" aria-label="User issue description"/>
-      <button id="report-btn">Report to Flipkart</button>
-      <div id="report-result" role="alert" aria-live="polite"></div>
-    </div>
-
-    <button id="save-proof-btn" style="display:none;margin-top:10px;">Download Verification Proof</button>
+  <!-- Section B: Delivery/Last-mile Verification [Delivery person] -->
+  <section class="section">
+    <h2>Delivery: Scan & Photograph Item</h2>
+    <label for="delivery-productid">Product ID (scan QR or enter)</label>
+    <input type="text" id="delivery-productid" placeholder="Scan or enter product ID"/>
+    <button id="start-qr-btn">Scan QR Now</button>
+    <div id="qr-reader"></div>
+    <button id="start-delivcam-btn">Take Delivery Photo</button>
+    <video id="deliv-video" style="display:none;" autoplay playsinline width="320"></video>
+    <canvas id="deliv-canvas" style="display:none;"></canvas>
+    <img id="delivery-photo-preview" class="deliver-image" style="display:none;" />
+    <input type="file" id="delivery-photo-upload" accept="image/*" style="display:none;" />
+    <button id="upload-delivery-proof-btn" style="display:none;">Upload Delivery Photo</button>
+    <div id="delivery-upload-result"></div>
+  </section>
+  <!-- Section C: Customer/Support Final Check -->
+  <section class="section">
+    <h2>Verify Delivery (Compare Photos)</h2>
+    <label for="verify-productid">Product ID</label>
+    <input type="text" id="verify-productid" placeholder="Enter product ID for verification"/>
+    <button id="verify-btn">Show Delivery Proof</button>
+    <div id="verify-result"></div>
   </section>
 </div>
-
 <script>
-/* ==== SETTINGS - Replace these ==== */
+/*********** CONTRACT/SETTINGS (EDIT) *************/
 const contractABI = [ 
   {
     "inputs": [
-      {"internalType": "string", "name": "productId", "type": "string"},
+      {"internalType": "string", "name": "productid", "type": "string"},
       {"internalType": "string", "name": "name", "type": "string"},
       {"internalType": "string", "name": "manufacturer", "type": "string"},
       {"internalType": "uint256", "name": "manuDate", "type": "uint256"},
-      {"internalType": "string", "name": "imageHash", "type": "string"}
+      {"internalType": "string", "name": "packPhoto", "type": "string"}
     ],
     "name": "registerProduct",
     "outputs": [],
     "stateMutability": "nonpayable", "type": "function"
   },
   {
-    "inputs": [{"internalType": "string", "name": "productId", "type": "string"}],
-    "name": "verifyProduct",
-    "outputs": [
-      {"internalType": "bool", "name": "exists", "type": "bool"},
-      {"internalType": "string", "name": "name", "type": "string"},
-      {"internalType": "string", "name": "manufacturer", "type": "string"},
-      {"internalType": "string", "name": "imageHash", "type": "string"}
+    "inputs":[
+      {"internalType": "string", "name": "productid", "type": "string"},
+      {"internalType": "string", "name": "deliveryPhoto", "type": "string"}
     ],
-    "stateMutability": "view", "type": "function"
+    "name": "markDelivered",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    "inputs": [
-      {"internalType": "string", "name": "productId", "type": "string"},
-      {"internalType": "string", "name": "remarks", "type": "string"}
+    "inputs": [{"internalType": "string", "name": "productid", "type": "string"}],
+    "name": "getProduct",
+    "outputs": [
+      {"internalType":"string","name":"name","type":"string"},
+      {"internalType":"string","name":"manufacturer","type":"string"},
+      {"internalType":"uint256","name":"manuDate","type":"uint256"},
+      {"internalType":"string","name":"packPhoto","type":"string"},
+      {"internalType":"string","name":"deliveryPhoto","type":"string"}
     ],
-    "name": "logReport",
-    "outputs": [],
-    "stateMutability": "nonpayable", "type": "function"
+    "stateMutability": "view",
+    "type": "function"
   }
 ];
-// Contract deployed address
-const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836"; // <<< UPDATE THIS
-// nft.storage API key - get from https://nft.storage/
-const NFT_STORAGE_TOKEN = "YOUR_NFT_STORAGE_API_KEY"; // <<< UPDATE THIS
+// Your contract address:
+const contractAddress = "0x0fC5025C764cE34df352757e82f7B5c4Df39A836";
+// nft.storage API key:
+const NFT_STORAGE_TOKEN = "YOUR_NFT_STORAGE_API_KEY"; // << put your real key
+/*********** END SETTINGS *************/
 
-/* ==== APP VARIABLES ==== */
-let web3, contract, currentAccount;
-let scanner, currentCameraId, flashOn = false;
-
+let web3, contract, currentAccount, scanner;
 const connectWalletBtn = document.getElementById("connectWalletBtn");
 const walletAddressDiv = document.getElementById("walletAddress");
-const registerForm = document.getElementById("registration-form");
-const registrationResult = document.getElementById("registration-result");
+const regForm = document.getElementById("registration-form");
+const regResult = document.getElementById("registration-result");
 const verifyBtn = document.getElementById("verify-btn");
-const verifyProductIdInput = document.getElementById("verify-productId");
-const verificationResult = document.getElementById("verification-result");
-const userReportSection = document.getElementById("user-report-section");
-const userReportInput = document.getElementById("user-report");
-const reportBtn = document.getElementById("report-btn");
-const reportResult = document.getElementById("report-result");
-const saveProofBtn = document.getElementById("save-proof-btn");
-const qrReaderDiv = document.getElementById("qr-reader");
-const qrResultDiv = document.getElementById("qr-result");
-const flashToggleBtn = document.getElementById("flash-toggle");
-const startCameraBtn = document.getElementById("start-camera-btn");
+const verifyResult = document.getElementById("verify-result");
 
-/* ==== CONNECT WALLET ==== */
+const qrReaderDiv = document.getElementById("qr-reader");
+const startQRBtn = document.getElementById("start-qr-btn");
+const deliveryProductIdInput = document.getElementById("delivery-productid");
+const startDelivCamBtn = document.getElementById("start-delivcam-btn");
+const delivVideo = document.getElementById("deliv-video");
+const delivCanvas = document.getElementById("deliv-canvas");
+const deliveryPhotoPreview = document.getElementById("delivery-photo-preview");
+const deliveryPhotoUpload = document.getElementById("delivery-photo-upload");
+const uploadDeliveryBtn = document.getElementById("upload-delivery-proof-btn");
+const deliveryUploadResult = document.getElementById("delivery-upload-result");
+
+/* WALLET */
 connectWalletBtn.onclick = async () => {
   if (window.ethereum) {
-    try {
-      web3 = new Web3(window.ethereum);
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      currentAccount = accounts[0];
-      contract = new web3.eth.Contract(contractABI, contractAddress);
-      walletAddressDiv.textContent = "Connected: " + currentAccount;
-      verifyBtn.disabled = false;
-    } catch (error) {
-      alert("Wallet connection denied.");
-    }
+    web3 = new Web3(window.ethereum);
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    currentAccount = accounts[0];
+    contract = new web3.eth.Contract(contractABI, contractAddress);
+    walletAddressDiv.textContent = "Connected: " + currentAccount;
   } else {
-    alert("Please install MetaMask to use this app.");
+    alert("Please install MetaMask.");
   }
 };
 
-/* ==== REGISTER PRODUCT (Photo upload to IPFS/NFT.Storage) ==== */
-registerForm.onsubmit = async (e) => {
+/* REGISTRATION */
+regForm.onsubmit = async (e) => {
   e.preventDefault();
-  registrationResult.textContent = "";
-  registrationResult.className = "";
-
-  const productId = document.getElementById('reg-productId').value.trim();
+  regResult.textContent = ""; regResult.className = "";
+  const productid = document.getElementById('reg-productid').value.trim();
   const name = document.getElementById('reg-name').value.trim();
   const manufacturer = document.getElementById('reg-manufacturer').value.trim();
   const date = document.getElementById('reg-manufactureDate').value;
-  const photoFile = document.getElementById('reg-photo').files[0];
-
-  if (!productId || !name || !manufacturer || !date) {
-    registrationResult.textContent = "❌ Please fill all fields.";
-    registrationResult.className = "error";
-    return;
-  }
-  if (!photoFile) {
-    registrationResult.textContent = "❌ Please upload the product photo!";
-    registrationResult.className = "error";
-    return;
-  }
-  if (!web3 || !currentAccount) {
-    registrationResult.textContent = "❌ Please connect your wallet first.";
-    registrationResult.className = "error";
-    return;
-  }
-
+  const packPhoto = document.getElementById('reg-pack-photo').files[0];
+  if (!productid || !name || !manufacturer || !date || !packPhoto) {regResult.textContent = "Please fill all fields and upload packed photo!";regResult.className="error";return;}
   try {
+    regResult.textContent = "Uploading photo to IPFS...";
     const client = new NFTStorage.NFTStorage({ token: NFT_STORAGE_TOKEN });
-    const ipfsHash = await client.storeBlob(photoFile); // Returns IPFS hash string
-    const timestamp = Math.floor(new Date(date).getTime() / 1000);
-
-    await contract.methods.registerProduct(productId, name, manufacturer, timestamp, ipfsHash)
-      .send({ from: currentAccount });
-
-    registrationResult.textContent = "✅ Product Registered!";
-    registrationResult.className = "success";
-    registerForm.reset();
-  } catch (err) {
-    console.error(err);
-    registrationResult.textContent = "❌ Error registering product or uploading photo.";
-    registrationResult.className = "error";
+    const packHash = await client.storeBlob(packPhoto);
+    const manuDate = Math.floor(new Date(date).getTime() / 1000);
+    await contract.methods.registerProduct(productid, name, manufacturer, manuDate, packHash).send({ from: currentAccount });
+    regResult.textContent = "✅ Registered and photo saved!"; regResult.className="success";
+    regForm.reset();
+  } catch(ex) {
+    regResult.textContent = "❌ Error registering or uploading photo."; regResult.className="error";
   }
 };
 
-/* ==== VERIFY PRODUCT ==== */
-verifyBtn.onclick = async () => {
-  verificationResult.textContent = "";
-  verificationResult.className = "";
-  saveProofBtn.style.display = "none";
-  userReportSection.style.display = "none";
-  reportResult.textContent = "";
-  reportResult.className = "";
-
-  const pid = verifyProductIdInput.value.trim();
-  if (!pid) {
-    verificationResult.textContent = "❌ Please enter or scan a product ID.";
-    verificationResult.className = "error";
-    return;
-  }
-  if (!web3 || !currentAccount) {
-    verificationResult.textContent = "❌ Please connect your wallet first.";
-    verificationResult.className = "error";
-    return;
-  }
-
-  try {
-    const res = await contract.methods.verifyProduct(pid).call({ from: currentAccount });
-    // res => [exists, name, manufacturer, imageHash]
-    if (res[0]) {
-      let imageHtml = "";
-      if (res[3] && res[3] !== "") {
-        imageHtml = `<img class="prod-image" src="<https://ipfs.io/ipfs/${res>[3]}" alt="Packed Product Photo"/>`;
-      }
-      verificationResult.innerHTML = 
-        `✅ <strong>Valid Product</strong><br>
-        <strong>Name:</strong> ${res[1]}<br>
-        <strong>Manufacturer:</strong> ${res[2]}<br>
-        ${imageHtml}
-        <p style="color:#ffe089;">Check this image and details: Does this match your delivered product and packing?</p>
-        `;
-      verificationResult.className = "success";
-      userReportSection.style.display = "block";
-      saveProofBtn.style.display = "inline-block";
-    } else {
-      verificationResult.textContent = "❌ Product not found! Please refuse delivery or scan from your phone's body QR/serial.";
-      verificationResult.className = "error";
-    }
-  } catch (e) {
-    console.error(e);
-    verificationResult.textContent = "❌ Error verifying product.";
-    verificationResult.className = "error";
-  }
-};
-
-/* ==== REPORT ISSUE ==== */
-reportBtn.onclick = async () => {
-  reportResult.textContent = "";
-  reportResult.className = "";
-
-  const productId = verifyProductIdInput.value.trim();
-  const remarks = userReportInput.value.trim();
-
-  if (!remarks) {
-    reportResult.textContent = "❌ Please describe the issue!";
-    return;
-  }
-  if (!web3 || !currentAccount) {
-    reportResult.textContent = "❌ Please connect your wallet first.";
-    reportResult.className = "error";
-    return;
-  }
-  try {
-    await contract.methods.logReport(productId, remarks).send({ from: currentAccount });
-    reportResult.textContent = "✅ Issue reported! Support will contact you if necessary.";
-    reportResult.className = "success";
-    userReportInput.value = "";
-  } catch (err) {
-    console.error(err);
-    reportResult.textContent = "❌ Failed to submit report. Please try again.";
-    reportResult.className = "error";
-  }
-};
-
-/* ==== DOWNLOAD VERIFICATION PROOF ==== */
-saveProofBtn.onclick = () => {
-  const productId = verifyProductIdInput.value.trim();
-  const verifiedText = verificationResult.innerText || verificationResult.textContent || "";
-  const time = new Date().toLocaleString();
-  const content = `Verification Proof\nProduct ID: ${productId}\n\n${verifiedText}\n\nChecked at: ${time}\n`;
-  const blob = new Blob([content], { type: "text/plain" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `verification-proof-${productId}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
-/* ==== CAMERA & QR SCANNING ==== */
-startCameraBtn.onclick = async () => {
-  if (!scanner) {
-    scanner = new Html5Qrcode("qr-reader");
-  }
-  startCameraBtn.disabled = true;
-  qrResultDiv.textContent = "";
+/* QR SCAN FOR DELIVERY */
+startQRBtn.onclick = async () => {
+  if (!scanner) scanner = new Html5Qrcode("qr-reader");
+  startQRBtn.disabled = true; qrReaderDiv.innerHTML = "";
   try {
     const devices = await Html5Qrcode.getCameras();
-    if (!devices || devices.length === 0) {
-      qrResultDiv.textContent = "❌ No cameras found on this device.";
-      startCameraBtn.disabled = false;
-      return;
-    }
-    const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
-    currentCameraId = backCam.id;
-
+    if (!devices.length) throw new Error("No camera found!");
     await scanner.start(
-      { deviceId: { exact: currentCameraId } },
-      { fps: 10, qrbox: 250 },
+      { deviceId: { exact: devices[0].id } },
+      { fps: 12, qrbox: 220 },
       (decodedText) => {
-        verifyProductIdInput.value = decodedText;
-        qrResultDiv.textContent = "📦 QR Scanned: " + decodedText;
-        verifyBtn.click();
-      },
-      (errorMessage) => {
-        // handle scan error if needed
+        deliveryProductIdInput.value = decodedText;
+        qrReaderDiv.innerHTML = "✔ QR Scanned: " + decodedText;
+        scanner.stop();
+        startQRBtn.disabled = false;
       }
     );
-
-    // Show flash toggle if supported
-    const capabilities = await scanner.getRunningTrackCapabilities?.();
-    if (capabilities && capabilities.torch) {
-      flashToggleBtn.style.display = "block";
-    } else {
-      flashToggleBtn.style.display = "none";
-    }
-  } catch (err) {
-    console.error(err);
-    qrResultDiv.textContent = "❌ Unable to start camera: " + err.message;
-    startCameraBtn.disabled = false;
+  } catch (e) {
+    qrReaderDiv.innerHTML = "❌ Camera/QR Scan failed: " + e.message;
+    startQRBtn.disabled = false;
   }
 };
 
-/* ==== FLASHLIGHT TOGGLE ==== */
-flashToggleBtn.onclick = async () => {
-  if (!scanner || !currentCameraId) return;
-  flashOn = !flashOn;
+/* CAPTURE DELIVERY PHOTO via Camera */
+startDelivCamBtn.onclick = async () => {
+  // Use browser camera, capture frame and display preview
   try {
-    await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
-    flashToggleBtn.setAttribute("aria-pressed", flashOn);
-  } catch (err) {
-    alert("Flashlight not supported on this device.");
+    const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    delivVideo.style.display = "block"; deliveryPhotoPreview.style.display = "none";
+    delivVideo.srcObject = mediaStream;
+    startDelivCamBtn.textContent = "Capture Snapshot for Proof";
+    startDelivCamBtn.onclick = () => {
+      delivCanvas.width = delivVideo.videoWidth;
+      delivCanvas.height = delivVideo.videoHeight;
+      delivCanvas.getContext('2d').drawImage(delivVideo, 0,0);
+      delivVideo.srcObject.getTracks().forEach(track => track.stop());
+      delivVideo.style.display="none";
+      delivCanvas.toBlob(blob => {
+        deliveryPhotoPreview.src = URL.createObjectURL(blob);
+        deliveryPhotoPreview.style.display="block";
+        deliveryPhotoUpload.files = null;
+        deliveryPhotoUpload.fileBlob = blob;
+        uploadDeliveryBtn.style.display="block";
+      }, "image/jpeg", 0.90);
+    };
+  } catch(e) {
+    deliveryUploadResult.textContent = "❌ Camera access denied: "+e.message;
+  }
+};
+/* UPLOAD DELIVERY PROOF */
+uploadDeliveryBtn.onclick = async () => {
+  deliveryUploadResult.textContent="Uploading delivery photo to IPFS...";
+  const productid = deliveryProductIdInput.value.trim();
+  if (!productid) {deliveryUploadResult.textContent="Scan or enter product ID first."; return;}
+  if (!deliveryPhotoPreview.src) {deliveryUploadResult.textContent="Take a photo first."; return;}
+  if (!web3 || !currentAccount) {deliveryUploadResult.textContent="Connect wallet first."; return;}
+  try {
+    const client = new NFTStorage.NFTStorage({ token: NFT_STORAGE_TOKEN });
+    // Prepare blob from image
+    const response = await fetch(deliveryPhotoPreview.src);
+    const blob = await response.blob();
+    const delivHash = await client.storeBlob(blob);
+    await contract.methods.markDelivered(productid, delivHash).send({from: currentAccount});
+    deliveryUploadResult.textContent="✅ Delivery photo uploaded and linked to delivery!"; deliveryUploadResult.className="success";
+    uploadDeliveryBtn.style.display="none"; deliveryPhotoPreview.style.display="none";
+  } catch(ex) {
+    deliveryUploadResult.textContent="❌ Error uploading proof or marking delivery.";
+    deliveryUploadResult.className="error";
   }
 };
 
-/* ==== On page load ==== */
-window.onload = () => {
-  verifyBtn.disabled = true;
-  flashToggleBtn.style.display = "none";
-  qrResultDiv.textContent = "";
+/* VERIFY/COMPARE (Customer/Support Final Check) */
+verifyBtn.onclick = async () => {
+  verifyResult.textContent="";
+  const pid = document.getElementById("verify-productid").value.trim();
+  if (!pid) {verifyResult.textContent="Enter product ID to check!"; return;}
+  if (!web3 || !currentAccount) {verifyResult.textContent="Connect wallet first."; return;}
+  try {
+    const res = await contract.methods.getProduct(pid).call();
+    let html = <b>Name:</b> ${res[0]}<br><b>Manufacturer:</b> ${res[1]}<br><b>Date:</b> ${new Date(res[2]*1000).toLocaleDateString()}<br>;
+    html += res[3] ? <b>Packed Photo (from warehouse):</b><br><img class="prod-image" src="<https://ipfs.io/ipfs/${res>[3]}" alt="Packed Photo"/><br> : "<i>No packed photo found.</i>";
+    html += res[4] ? <b>Delivered Photo (taken by delivery person):</b><br><img class="deliver-image" src="<https://ipfs.io/ipfs/${res>[4]}" alt="Delivered Photo"/><br> : "<i>No delivery photo proof found.</i>";
+    html += <p style="color:#ffe089;">Compare both photos: If the item delivered does not visually match the original packed warehouse photo, raise a dispute immediately!</p>;
+    verifyResult.innerHTML = html;
+  } catch(ex) {
+    verifyResult.textContent="❌ Error getting record or product not found.";
+  }
 };
 </script>
 </body>
