@@ -8,330 +8,146 @@
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
-      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
+      font-family: Arial, sans-serif;
+      margin: 20px;
       padding: 0;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    form {
+      max-width: 400px;
+      margin: 0 auto 20px auto;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
     }
-    h1 {
-      color: #333;
-      margin-top: 20px;
-    }
-    #wallet-address {
-      margin-bottom: 20px;
-      font-weight: bold;
-    }
-    .container {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      width: 90%;
-      max-width: 500px;
-      margin-bottom: 30px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    label {
-      font-weight: 600;
-    }
-    input[type="text"], input[type="file"] {
+    input, button {
+      margin: 5px 0;
       padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      width: 100%;
-    }
-    button {
-      padding: 10px;
-      background-color: #4caf50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #45a049;
     }
     #qr-reader {
       width: 100%;
-      margin-top: 10px;
+      margin: 20px auto;
+    }
+    .status {
+      text-align: center;
+      margin: 10px 0;
     }
   </style>
 </head>
 <body>
   <h1>Blockchain Product Registry</h1>
-  <button onclick="connectWallet()">Connect Wallet</button>
-  <div id="wallet-address">Wallet: Not connected</div>
 
-  <div class="container">
-    <h2>Register Product</h2>
-    <label for="product-id">Product ID:</label>
-    <input type="text" id="product-id" placeholder="Enter or scan Product ID" />
+  <button onclick="connectWallet()">🔗 Connect Wallet</button>
+  <div id="walletAddress" class="status"></div>
 
-    <button onclick="startQRScanner()">Start Scanner</button>
-    <div id="qr-reader"></div>
+  <h2>Scan QR / Barcode</h2>
+  <div id="qr-reader"></div>
+  <div id="qr-result" class="status"></div>
 
-    <label for="otp">OTP:</label>
-    <input type="text" id="otp" placeholder="6-digit OTP" readonly />
-    <button onclick="generateOTP()">Generate OTP</button>
+  <h2>Register Product</h2>
+  <form id="registerForm">
+    <input type="text" id="productId" placeholder="Product ID (scanned or manual)" required />
+    <input type="text" id="productName" placeholder="Product Name" required />
+    <input type="text" id="manufacturer" placeholder="Manufacturer" required />
+    <input type="date" id="registrationDate" required />
+    <input type="text" id="otp" placeholder="OTP" required />
+    <input type="file" id="file" required />
+    <button type="button" onclick="generateOTP()">Generate OTP</button>
+    <button type="submit">Register Product</button>
+  </form>
 
-    <label for="product-file">Upload File:</label>
-    <input type="file" id="product-file" />
+  <h2>Verify Product</h2>
+  <form id="verifyForm">
+    <input type="text" id="verifyProductId" placeholder="Product ID" required />
+    <input type="text" id="verifyOtp" placeholder="OTP" required />
+    <button type="submit">Verify Product</button>
+  </form>
 
-    <button onclick="registerProduct()">Register Product</button>
-  </div>
-
-  <div class="container">
-    <h2>Verify Product</h2>
-    <label for="verify-id">Product ID:</label>
-    <input type="text" id="verify-id" />
-
-    <label for="verify-otp">OTP:</label>
-    <input type="text" id="verify-otp" />
-
-    <button onclick="verifyProduct()">Verify Product</button>
-  </div>
+  <div id="result" class="status"></div>
 
   <script>
-    let contract;
-    const contractAddress = "0xcf793e230f11ce3042aeadd1ca72e86c1dfd533e";
+    const contractAddress = '0xcf793e230f11ce3042aeadd1ca72e86c1dfd533e';
     const abi = [
-      [
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "owner",
-				"type": "address"
-			}
-		],
-		"name": "ProductRegistered",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "bool",
-				"name": "valid",
-				"type": "bool"
-			}
-		],
-		"name": "ProductVerified",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_productId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "_otp",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "_fileHash",
-				"type": "string"
-			}
-		],
-		"name": "registerProduct",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_productId",
-				"type": "string"
-			}
-		],
-		"name": "getFileHash",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_productId",
-				"type": "string"
-			}
-		],
-		"name": "getOwner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"name": "products",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "otp",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "fileHash",
-				"type": "string"
-			},
-			{
-				"internalType": "address",
-				"name": "owner",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_productId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "_otp",
-				"type": "string"
-			}
-		],
-		"name": "verifyProduct",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
-]
-   ];
+      {"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"productId","type":"string"},{"indexed":true,"internalType":"address","name":"owner","type":"address"}],"name":"ProductRegistered","type":"event"},
+      {"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"productId","type":"string"},{"indexed":false,"internalType":"bool","name":"valid","type":"bool"}],"name":"ProductVerified","type":"event"},
+      {"inputs":[{"internalType":"string","name":"_productId","type":"string"},{"internalType":"string","name":"_otp","type":"string"},{"internalType":"string","name":"_fileHash","type":"string"}],"name":"registerProduct","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"string","name":"_productId","type":"string"}],"name":"getFileHash","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"string","name":"_productId","type":"string"}],"name":"getOwner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"products","outputs":[{"internalType":"string","name":"productId","type":"string"},{"internalType":"string","name":"otp","type":"string"},{"internalType":"string","name":"fileHash","type":"string"},{"internalType":"address","name":"owner","type":"address"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"string","name":"_productId","type":"string"},{"internalType":"string","name":"_otp","type":"string"}],"name":"verifyProduct","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}
+    ];
+
+    let account;
+    let contract;
 
     async function connectWallet() {
       if (window.ethereum) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          account = accounts[0];
+          document.getElementById('walletAddress').innerText = `Connected Wallet: ${account}`;
           const web3 = new Web3(window.ethereum);
           contract = new web3.eth.Contract(abi, contractAddress);
-          document.getElementById("wallet-address").innerText = `Wallet: ${accounts[0]}`;
-        } catch (error) {
-          console.error("Wallet connection error:", error);
+        } catch (err) {
+          alert('Wallet connection failed.');
         }
       } else {
-        alert("MetaMask not found!");
+        alert('MetaMask not found.');
       }
     }
 
     function generateOTP() {
       const otp = Math.floor(100000 + Math.random() * 900000);
-      document.getElementById("otp").value = otp;
+      document.getElementById('otp').value = otp;
     }
 
-    async function registerProduct() {
-      const productId = document.getElementById("product-id").value;
-      const otp = document.getElementById("otp").value;
-      const fileInput = document.getElementById("product-file");
-      const file = fileInput.files[0];
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const productId = document.getElementById('productId').value;
+      const otp = document.getElementById('otp').value;
+      const file = document.getElementById('file').files[0];
 
-      if (!productId || !otp || !file) return alert("All fields required");
+      if (!file) return alert('Please upload a file.');
 
-      const fileReader = new FileReader();
-      fileReader.onload = async function(event) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
         const fileHash = Web3.utils.sha3(event.target.result);
-        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-        contract.methods.registerProduct(productId, otp, fileHash)
-          .send({ from: accounts[0] })
-          .then(() => alert("✅ Product Registered!"))
-          .catch(err => {
-            console.error(err);
-            alert("❌ Registration Failed. Check console.");
-          });
+        try {
+          await contract.methods.registerProduct(productId, otp, fileHash).send({ from: account });
+          document.getElementById('result').innerText = '✅ Product Registered Successfully';
+        } catch (err) {
+          console.error(err);
+          document.getElementById('result').innerText = '❌ Registration Failed. Check console.';
+        }
       };
-      fileReader.readAsText(file);
-    }
+      reader.readAsArrayBuffer(file);
+    });
 
-    async function verifyProduct() {
-      const productId = document.getElementById("verify-id").value;
-      const otp = document.getElementById("verify-otp").value;
-      if (!productId || !otp) return alert("Both fields required");
-
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const productId = document.getElementById('verifyProductId').value;
+      const otp = document.getElementById('verifyOtp').value;
       try {
-        const result = await contract.methods.verifyProduct(productId, otp).call();
-        alert(result ? "✅ Verified!" : "❌ Invalid!");
-      } catch (error) {
-        console.error(error);
-        alert("❌ Verification Failed.");
+        const isValid = await contract.methods.verifyProduct(productId, otp).call();
+        document.getElementById('result').innerText = isValid ? '✅ Product is Authentic' : '❌ Invalid Product or OTP';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('result').innerText = '❌ Verification Failed';
       }
+    });
+
+    function onScanSuccess(decodedText) {
+      document.getElementById('qr-result').innerText = `Scanned: ${decodedText}`;
+      document.getElementById('productId').value = decodedText;
     }
 
-    function startQRScanner() {
-      const qrReader = new Html5Qrcode("qr-reader");
-      qrReader.start({ facingMode: "environment" }, {
-        fps: 10,
-        qrbox: 250
-      }, qrCodeMessage => {
-        document.getElementById("product-id").value = qrCodeMessage;
-        qrReader.stop();
-      }, error => {
-        console.warn("QR Error:", error);
-      });
-    }
+    const qrScanner = new Html5QrcodeScanner('qr-reader', {
+      fps: 10,
+      qrbox: 250,
+      rememberLastUsedCamera: true,
+    });
+    qrScanner.render(onScanSuccess);
   </script>
 </body>
 </html>
