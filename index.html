@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -50,9 +49,7 @@
       color: green;
       font-weight: bold;
     }
-    #qr-reader {
-      width: 100%; margin-top: 10px;
-    }
+    #qr-reader { width: 100%; margin-top: 10px; }
     .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
     .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
     #qr-result {
@@ -60,7 +57,7 @@
       font-weight: bold;
       color: #333;
       text-align: center;
-      word-break: break-all;
+      word-break: break-word;
     }
     .flash-toggle {
       background: #28a745;
@@ -107,106 +104,49 @@
   </section>
 
   <script>
-    const contractABI = [[
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "manufacturer",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "manufactureDate",
-				"type": "uint256"
-			}
-		],
-		"name": "ProductRegistered",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "manufacturer",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "manufactureDate",
-				"type": "uint256"
-			}
-		],
-		"name": "registerProduct",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			}
-		],
-		"name": "verifyProduct",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "found",
-				"type": "bool"
-			},
-			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "manufacturer",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "manufactureDate",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
-]];
+    const contractABI = [
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
+          { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
+          { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" },
+          { "indexed": false, "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
+        ],
+        "name": "ProductRegistered",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" },
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "manufacturer", "type": "string" },
+          { "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
+        ],
+        "name": "registerProduct",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "string", "name": "productId", "type": "string" }
+        ],
+        "name": "verifyProduct",
+        "outputs": [
+          { "internalType": "bool", "name": "found", "type": "bool" },
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "manufacturer", "type": "string" },
+          { "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
     const contractAddress = "0x0731ab818bec595649995b3224a7fea77d30e479";
 
     let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
 
-    // Connect wallet
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
         try {
@@ -217,14 +157,13 @@
           document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           document.getElementById("verify-btn").disabled = false;
         } catch (err) {
-          alert("User denied wallet connection.");
+          alert("❌ Wallet connection denied.");
         }
       } else {
-        alert("Please install MetaMask.");
+        alert("🦊 Please install MetaMask.");
       }
     });
 
-    // Register product
     document.getElementById("registration-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const productId = document.getElementById('reg-productId').value;
@@ -247,7 +186,6 @@
       }
     });
 
-    // Verify product
     document.getElementById("verify-btn").addEventListener("click", async () => {
       const pid = document.getElementById("verify-productId").value.trim();
       const resultDiv = document.getElementById("verification-result");
@@ -257,7 +195,7 @@
       try {
         const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
         if (res[0]) {
-          resultDiv.innerHTML = ✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]};
+          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
           resultDiv.className = "success";
         } else {
           resultDiv.textContent = "❌ Product not found!";
@@ -269,7 +207,19 @@
       }
     });
 
-    // Start QR scanner
+    async function ensureCameraAccess() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Your browser does not support camera access. Use Chrome/Firefox with HTTPS.");
+        return;
+      }
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        console.log("✅ Camera access granted.");
+      } catch (err) {
+        alert("❌ Camera permission denied.");
+      }
+    }
+
     async function startScanner() {
       scanner = new Html5Qrcode("qr-reader");
 
@@ -285,17 +235,14 @@
             (decodedText) => {
               document.getElementById("verify-productId").value = decodedText;
               document.getElementById("verify-btn").click();
-
               const resultDiv = document.getElementById("qr-result");
               if (/^https?:\/\//.test(decodedText)) {
-                resultDiv.innerHTML = 🔗 QR Detected: <br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>;
+                resultDiv.innerHTML = `🔗 QR Detected:<br><a href="${decodedText}" target="_blank">${decodedText}</a>`;
               } else {
-                resultDiv.textContent = 📦 QR Detected: ${decodedText};
+                resultDiv.textContent = `📦 QR Detected: ${decodedText}`;
               }
             },
-            (error) => {
-              console.warn("QR Scan Error:", error);
-            }
+            (error) => { console.warn("QR Scan Error:", error); }
           );
 
           const capabilities = await scanner.getRunningTrackCapabilities();
@@ -311,7 +258,6 @@
       }
     }
 
-    // Toggle flashlight
     document.getElementById("flash-toggle").addEventListener("click", async () => {
       if (scanner && currentCameraId) {
         flashOn = !flashOn;
@@ -320,12 +266,31 @@
             advanced: [{ torch: flashOn }]
           });
         } catch (err) {
-          alert("⚠ Flashlight not supported on this device.");
+          alert("⚠ Flashlight not supported.");
         }
       }
     });
 
-    window.onload = startScanner;
+    async function autoInit() {
+      await ensureCameraAccess();
+      if (window.ethereum && window.ethereum.selectedAddress) {
+        try {
+          web3 = new Web3(window.ethereum);
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          userAccount = accounts[0];
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
+          document.getElementById("verify-btn").disabled = false;
+        } catch (err) {
+          console.warn("Auto wallet connect failed.");
+        }
+      }
+    }
+
+    window.onload = async () => {
+      await autoInit();
+      await startScanner();
+    };
   </script>
 </body>
 </html>
