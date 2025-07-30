@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -20,7 +21,10 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
     }
-    h1, h2 { text-align: center; color: #333; }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
     label {
       display: block;
       margin-top: 15px;
@@ -44,14 +48,33 @@
       margin-top: 20px;
       cursor: pointer;
     }
+    button:disabled {
+      background-color: #888;
+      cursor: not-allowed;
+    }
     #walletAddress {
       text-align: center;
       color: green;
       font-weight: bold;
     }
-    #qr-reader { width: 100%; margin-top: 10px; }
-    .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
-    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    #qr-reader {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .success {
+      background: #e0f5e9;
+      color: green;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .error {
+      background: #fcebea;
+      color: red;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
     #qr-result {
       margin-top: 10px;
       font-weight: bold;
@@ -74,7 +97,7 @@
 <body>
   <h1>Blockchain Product Registry</h1>
   <button id="connectWalletBtn">🔗 Connect Wallet</button>
-  <p id="walletAddress"></p>
+  <p id="walletAddress">Wallet not connected</p>
 
   <section>
     <h2>Register New Product</h2>
@@ -104,49 +127,106 @@
   </section>
 
   <script>
-    const contractABI = [
-      {
-        "anonymous": false,
-        "inputs": [
-          { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
-          { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
-          { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" },
-          { "indexed": false, "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
-        ],
-        "name": "ProductRegistered",
-        "type": "event"
-      },
-      {
-        "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" },
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "manufacturer", "type": "string" },
-          { "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
-        ],
-        "name": "registerProduct",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" }
-        ],
-        "name": "verifyProduct",
-        "outputs": [
-          { "internalType": "bool", "name": "found", "type": "bool" },
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "manufacturer", "type": "string" },
-          { "internalType": "uint256", "name": "manufactureDate", "type": "uint256" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ];
-    const contractAddress = "0x0731ab818bec595649995b3224a7fea77d30e479";
+    const contractABI = [[
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "productHash",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "manufacturer",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "manufactureDate",
+				"type": "uint256"
+			}
+		],
+		"name": "ProductRegistered",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "productId",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "manufacturer",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "manufactureDate",
+				"type": "uint256"
+			}
+		],
+		"name": "registerProduct",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "productId",
+				"type": "string"
+			}
+		],
+		"name": "verifyProduct",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "found",
+				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "manufacturer",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "manufactureDate",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]];
+    const contractAddress = "0x60be51dc7f9a268bad594db2f381c2db4fc73a30";
 
     let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
 
+    // Connect wallet
     document.getElementById("connectWalletBtn").addEventListener("click", async () => {
       if (window.ethereum) {
         try {
@@ -157,13 +237,14 @@
           document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           document.getElementById("verify-btn").disabled = false;
         } catch (err) {
-          alert("❌ Wallet connection denied.");
+          alert("User denied wallet connection.");
         }
       } else {
-        alert("🦊 Please install MetaMask.");
+        alert("Please install MetaMask.");
       }
     });
 
+    // Register product
     document.getElementById("registration-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const productId = document.getElementById('reg-productId').value;
@@ -186,6 +267,7 @@
       }
     });
 
+    // Verify product
     document.getElementById("verify-btn").addEventListener("click", async () => {
       const pid = document.getElementById("verify-productId").value.trim();
       const resultDiv = document.getElementById("verification-result");
@@ -207,19 +289,7 @@
       }
     });
 
-    async function ensureCameraAccess() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Your browser does not support camera access. Use Chrome/Firefox with HTTPS.");
-        return;
-      }
-      try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        console.log("✅ Camera access granted.");
-      } catch (err) {
-        alert("❌ Camera permission denied.");
-      }
-    }
-
+    // Start QR scanner
     async function startScanner() {
       scanner = new Html5Qrcode("qr-reader");
 
@@ -235,18 +305,21 @@
             (decodedText) => {
               document.getElementById("verify-productId").value = decodedText;
               document.getElementById("verify-btn").click();
+
               const resultDiv = document.getElementById("qr-result");
               if (/^https?:\/\//.test(decodedText)) {
-                resultDiv.innerHTML = `🔗 QR Detected:<br><a href="${decodedText}" target="_blank">${decodedText}</a>`;
+                resultDiv.innerHTML = `🔗 QR Detected: <br><a href="${decodedText}" target="_blank" rel="noopener noreferrer">${decodedText}</a>`;
               } else {
                 resultDiv.textContent = `📦 QR Detected: ${decodedText}`;
               }
             },
-            (error) => { console.warn("QR Scan Error:", error); }
+            (error) => {
+              console.warn("QR Scan Error:", error);
+            }
           );
 
           const capabilities = await scanner.getRunningTrackCapabilities();
-          if (capabilities.torch) {
+          if (capabilities && capabilities.torch) {
             document.getElementById("flash-toggle").style.display = "block";
           }
         } else {
@@ -258,6 +331,7 @@
       }
     }
 
+    // Toggle flashlight
     document.getElementById("flash-toggle").addEventListener("click", async () => {
       if (scanner && currentCameraId) {
         flashOn = !flashOn;
@@ -266,31 +340,12 @@
             advanced: [{ torch: flashOn }]
           });
         } catch (err) {
-          alert("⚠ Flashlight not supported.");
+          alert("⚠ Flashlight not supported on this device.");
         }
       }
     });
 
-    async function autoInit() {
-      await ensureCameraAccess();
-      if (window.ethereum && window.ethereum.selectedAddress) {
-        try {
-          web3 = new Web3(window.ethereum);
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          userAccount = accounts[0];
-          contract = new web3.eth.Contract(contractABI, contractAddress);
-          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
-          document.getElementById("verify-btn").disabled = false;
-        } catch (err) {
-          console.warn("Auto wallet connect failed.");
-        }
-      }
-    }
-
-    window.onload = async () => {
-      await autoInit();
-      await startScanner();
-    };
+    window.onload = startScanner;
   </script>
 </body>
 </html>
