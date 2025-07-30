@@ -8,43 +8,88 @@
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #eef2f7;
+      margin: 0; padding: 20px;
+      max-width: 600px; margin: auto;
     }
-    #reader {
-      width: 300px;
-      margin-bottom: 20px;
+    section {
+      background: #fff;
+      padding: 15px 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    h1, h2 { text-align: center; color: #333; }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #444;
     }
     input, button {
-      margin: 5px 0;
-      padding: 8px;
-      width: 300px;
-      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      margin-top: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
+      border: none;
+      margin-top: 20px;
+      cursor: pointer;
     }
     #walletAddress {
-      margin-bottom: 10px;
+      text-align: center;
+      color: green;
       font-weight: bold;
+    }
+    #reader {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
+    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
+    #result {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      text-align: center;
+      word-break: break-word;
     }
   </style>
 </head>
 <body>
-  <h2>Product Registry & Verification</h2>
+  <h1>Product Registry & Verification</h1>
+  <button onclick="connectWallet()">🔗 Connect Wallet</button>
+  <p id="walletAddress">Not connected</p>
 
-  <div id="walletAddress">Not connected</div>
-  <button onclick="connectWallet()">Connect Wallet</button>
+  <section>
+    <h2>Register Product</h2>
+    <label>Product ID</label>
+    <input type="text" id="productId" placeholder="Product ID (Scanned or Manual)" />
+    <label>Product Name</label>
+    <input type="text" id="productName" placeholder="Product Name" />
+    <label>Manufacturer</label>
+    <input type="text" id="manufacturer" placeholder="Manufacturer" />
+    <label>Manufacture Date</label>
+    <input type="date" id="mfgDate" />
+    <button onclick="registerProduct()">Register Product</button>
+  </section>
 
-  <div id="reader"></div>
-  <button onclick="startScanner()">Start Scanner</button>
-  <button onclick="stopScanner()">Stop Scanner</button>
-
-  <input type="text" id="productId" placeholder="Product ID (Scanned or Manual)" />
-  <input type="text" id="productName" placeholder="Product Name" />
-  <input type="text" id="manufacturer" placeholder="Manufacturer" />
-  <input type="date" id="mfgDate" placeholder="Manufacture Date" />
-  <button onclick="registerProduct()">Register Product</button>
-  <button onclick="verifyProduct()">Verify Product</button>
-
-  <div id="result"></div>
+  <section>
+    <h2>Verify Product</h2>
+    <label>Product ID</label>
+    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
+    <button onclick="verifyProduct()">Verify Product</button>
+    <div id="result"></div>
+    <div id="reader"></div>
+  </section>
 
   <script>
     let web3;
@@ -52,8 +97,8 @@
     let userAccount;
     let scanner;
 
-    const contractAddress = "0x60be51dc7f9a268bad594db2f381c2db4fc73a30"; // Replace with your contract address
-    const contractABI = [
+    const contractAddress = "0x60be51dc7f9a268bad594db2f381c2db4fc73a30";
+    const contractABI = [[
 	{
 		"anonymous": false,
 		"inputs": [
@@ -147,7 +192,7 @@
 		"stateMutability": "view",
 		"type": "function"
 	}
-]; // Replace with your ABI array from Remix
+]];
 
     async function connectWallet() {
       if (window.ethereum) {
@@ -172,19 +217,12 @@
         { fps: 10, qrbox: 250 },
         qrCodeMessage => {
           document.getElementById("productId").value = qrCodeMessage;
+          document.getElementById("verify-productId").value = qrCodeMessage;
         },
         errorMessage => {
           // ignore scan errors
         }
       );
-    }
-
-    function stopScanner() {
-      if (scanner) {
-        scanner.stop().then(() => {
-          document.getElementById("reader").innerHTML = "";
-        }).catch(err => console.error("Stop failed", err));
-      }
     }
 
     async function registerProduct() {
@@ -201,14 +239,16 @@
       try {
         await contract.methods.registerProduct(id, name, manufacturer, mfgDate).send({ from: userAccount });
         document.getElementById("result").innerText = "✅ Product registered successfully.";
+        document.getElementById("result").className = "success";
       } catch (err) {
         console.error(err);
         document.getElementById("result").innerText = "❌ Registration failed.";
+        document.getElementById("result").className = "error";
       }
     }
 
     async function verifyProduct() {
-      const id = document.getElementById("productId").value;
+      const id = document.getElementById("verify-productId").value;
       if (!id) {
         alert("Enter a product ID.");
         return;
@@ -222,16 +262,20 @@
             ✅ Product Found<br>
             Name: ${data[1]}<br>
             Manufacturer: ${data[2]}<br>
-            Manufacture Date: ${date}
-          `;
+            Manufacture Date: ${date}`;
+          document.getElementById("result").className = "success";
         } else {
           document.getElementById("result").innerText = "❌ Product not found.";
+          document.getElementById("result").className = "error";
         }
       } catch (err) {
         console.error(err);
         document.getElementById("result").innerText = "❌ Verification failed.";
+        document.getElementById("result").className = "error";
       }
     }
+
+    window.onload = startScanner;
   </script>
 </body>
 </html>
