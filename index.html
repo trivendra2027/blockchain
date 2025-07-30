@@ -77,8 +77,8 @@
     <input type="text" id="productName" placeholder="Product Name" />
     <label>Manufacturer</label>
     <input type="text" id="manufacturer" placeholder="Manufacturer" />
-    <label>Manufacture Date</label>
-    <input type="date" id="mfgDate" />
+    <label>OTP</label>
+    <input type="text" id="otp" placeholder="One-Time Password (OTP)" />
     <button onclick="registerProduct()">Register Product</button>
   </section>
 
@@ -86,6 +86,8 @@
     <h2>Verify Product</h2>
     <label>Product ID</label>
     <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
+    <label>OTP</label>
+    <input type="text" id="verify-otp" placeholder="Enter OTP" />
     <button onclick="verifyProduct()">Verify Product</button>
     <div id="result"></div>
     <div id="reader"></div>
@@ -97,102 +99,43 @@
     let userAccount;
     let scanner;
 
-    const contractAddress = "0x60be51dc7f9a268bad594db2f381c2db4fc73a30";
-    const contractABI = [[
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "bytes32",
-				"name": "productHash",
-				"type": "bytes32"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "manufacturer",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "manufactureDate",
-				"type": "uint256"
-			}
-		],
-		"name": "ProductRegistered",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "manufacturer",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "manufactureDate",
-				"type": "uint256"
-			}
-		],
-		"name": "registerProduct",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "productId",
-				"type": "string"
-			}
-		],
-		"name": "verifyProduct",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "found",
-				"type": "bool"
-			},
-			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "manufacturer",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "manufactureDate",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
-]];
+    const contractAddress = "0x8aa5884a29e62074ff8b01a796995f3d265a6d56";
+    const contractABI = [
+      {
+        "inputs": [
+          {"internalType": "string", "name": "_productId", "type": "string"},
+          {"internalType": "string", "name": "_productName", "type": "string"},
+          {"internalType": "string", "name": "_manufacturer", "type": "string"},
+          {"internalType": "string", "name": "_otp", "type": "string"}
+        ],
+        "name": "registerProduct",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{"internalType": "string", "name": "", "type": "string"}],
+        "name": "products",
+        "outputs": [
+          {"internalType": "string", "name": "productId", "type": "string"},
+          {"internalType": "string", "name": "productName", "type": "string"},
+          {"internalType": "string", "name": "manufacturer", "type": "string"},
+          {"internalType": "string", "name": "otp", "type": "string"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {"internalType": "string", "name": "_productId", "type": "string"},
+          {"internalType": "string", "name": "_otp", "type": "string"}
+        ],
+        "name": "verifyProduct",
+        "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
 
     async function connectWallet() {
       if (window.ethereum) {
@@ -230,57 +173,48 @@
       const id = document.getElementById("productId").value.trim();
       const name = document.getElementById("productName").value.trim();
       const manufacturer = document.getElementById("manufacturer").value.trim();
-      const mfgDateStr = document.getElementById("mfgDate").value;
+      const otp = document.getElementById("otp").value.trim();
 
-      if (!id || !name || !manufacturer || !mfgDateStr) {
+      if (!id || !name || !manufacturer || !otp) {
         alert("Please fill in all fields.");
         return;
       }
 
-      const mfgDate = Math.floor(new Date(mfgDateStr).getTime() / 1000);
-
-      if (isNaN(mfgDate) || mfgDate <= 0) {
-        alert("Invalid manufacture date.");
-        return;
-      }
-
-      console.log("Registering product with:", { id, name, manufacturer, mfgDate });
-
       try {
-        await contract.methods.registerProduct(id, name, manufacturer, mfgDate).send({ from: userAccount });
+        await contract.methods.registerProduct(id, name, manufacturer, otp).send({ from: userAccount });
         document.getElementById("result").innerText = "✅ Product registered successfully.";
         document.getElementById("result").className = "success";
       } catch (err) {
         console.error("Registration error:", err);
-        document.getElementById("result").innerText = "❌ Registration failed: " + err.message;
+        document.getElementById("result").innerText = "❌ Registration failed: " + (err.message || err);
         document.getElementById("result").className = "error";
       }
     }
 
     async function verifyProduct() {
       const id = document.getElementById("verify-productId").value.trim();
-      if (!id) {
-        alert("Enter a product ID.");
+      const otp = document.getElementById("verify-otp").value.trim();
+
+      if (!id || !otp) {
+        alert("Please enter both Product ID and OTP.");
         return;
       }
 
       try {
-        const data = await contract.methods.verifyProduct(id).call();
-        if (data[0]) {
-          const date = new Date(data[3] * 1000).toISOString().split('T')[0];
+        const verificationResult = await contract.methods.verifyProduct(id, otp).call();
+
+        if (verificationResult && verificationResult !== "") {
           document.getElementById("result").innerHTML = `
-            ✅ Product Found<br>
-            Name: ${data[1]}<br>
-            Manufacturer: ${data[2]}<br>
-            Manufacture Date: ${date}`;
+            ✅ Verification Result:<br>${verificationResult}
+          `;
           document.getElementById("result").className = "success";
         } else {
-          document.getElementById("result").innerText = "❌ Product not found.";
+          document.getElementById("result").innerText = "❌ Product not verified or OTP incorrect.";
           document.getElementById("result").className = "error";
         }
       } catch (err) {
-        console.error(err);
-        document.getElementById("result").innerText = "❌ Verification failed.";
+        console.error("Verification error:", err);
+        document.getElementById("result").innerText = "❌ Verification failed: " + (err.message || err);
         document.getElementById("result").className = "error";
       }
     }
@@ -288,4 +222,3 @@
     window.onload = startScanner;
   </script>
 </body>
-</html>
