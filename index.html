@@ -2,273 +2,216 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Product Registry & Verification</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #eef2f7;
-      margin: 0; padding: 20px;
-      max-width: 600px; margin: auto;
-    }
-    section {
-      background: #fff;
-      padding: 15px 25px;
-      margin-bottom: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
-    }
-    h1, h2 { text-align: center; color: #333; }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: 600;
-      color: #444;
-    }
-    input, button {
-      width: 100%;
-      padding: 10px 12px;
-      margin-top: 5px;
-      font-size: 1rem;
-      border-radius: 6px;
-      border: 1.5px solid #ccc;
+    * {
       box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f4f6f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 600px;
+      margin: auto;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+    input[type="text"], input[type="file"], input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
     button {
       background-color: #007bff;
       color: white;
-      font-weight: bold;
+      padding: 12px;
+      width: 100%;
       border: none;
-      margin-top: 20px;
+      border-radius: 6px;
       cursor: pointer;
+      font-size: 16px;
     }
-    #walletAddress {
+    button:hover {
+      background-color: #0056b3;
+    }
+    #wallet-address {
+      margin: 10px 0;
       text-align: center;
-      color: green;
-      font-weight: bold;
+      color: #444;
     }
-    #qr-reader {
-      width: 100%; margin-top: 10px;
+    #reader {
+      margin: 20px auto;
     }
-    .success { background: #e0f5e9; color: green; padding: 10px; border-radius: 5px; }
-    .error { background: #fcebea; color: red; padding: 10px; border-radius: 5px; }
-    .error strong { color: red; font-size: 1.1rem; }
-    #qr-result {
-      margin-top: 10px;
-      font-weight: bold;
-      color: #333;
+    #result {
       text-align: center;
-      word-break: break-word;
-    }
-    .flash-toggle {
-      background: #28a745;
-      color: #fff;
-      padding: 8px 12px;
-      margin-top: 10px;
-      display: inline-block;
-      border-radius: 5px;
-      cursor: pointer;
-      text-align: center;
+      margin: 20px 0;
     }
   </style>
 </head>
 <body>
-  <h1>Blockchain Product Registry</h1>
-  <button id="connectWalletBtn">🔗 Connect Wallet</button>
-  <p id="walletAddress"></p>
+  <div class="container">
+    <h1>Product Registry & Verification</h1>
 
-  <section>
-    <h2>Register New Product</h2>
-    <form id="registration-form">
-      <label for="reg-productId">Product ID</label>
-      <input type="text" id="reg-productId" required />
-      <label for="reg-name">Product Name</label>
-      <input type="text" id="reg-name" required />
-      <label for="reg-manufacturer">Manufacturer</label>
-      <input type="text" id="reg-manufacturer" required />
-      <label for="reg-manufactureDate">Manufacture Date</label>
-      <input type="date" id="reg-manufactureDate" required />
-      <button type="submit" id="register-btn">Register Product</button>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <p id="wallet-address"></p>
+
+    <div id="reader" width="300"></div>
+    <div id="result"></div>
+
+    <form id="registerForm">
+      <div class="form-group">
+        <label for="productId">Product ID</label>
+        <input type="text" id="productId" name="productId" required readonly />
+      </div>
+      <div class="form-group">
+        <label for="name">Product Name</label>
+        <input type="text" id="name" name="name" required />
+      </div>
+      <div class="form-group">
+        <label for="manufacturer">Manufacturer</label>
+        <input type="text" id="manufacturer" name="manufacturer" required />
+      </div>
+      <div class="form-group">
+        <label for="file">Upload File</label>
+        <input type="file" id="file" name="file" />
+      </div>
+      <button type="submit">Register Product</button>
     </form>
-    <div id="registration-result"></div>
-  </section>
 
-  <section>
-    <h2>Verify Product</h2>
-    <label for="verify-productId">Product ID</label>
-    <input type="text" id="verify-productId" placeholder="Scan or enter product ID" />
-    <button id="verify-btn" disabled>Verify Product</button>
-    <div id="verification-result"></div>
-    <div id="qr-result"></div>
-    <div id="qr-reader"></div>
-    <div class="flash-toggle" id="flash-toggle" style="display:none;">🔦 Toggle Flashlight</div>
-  </section>
+    <br />
+
+    <form id="verifyForm">
+      <div class="form-group">
+        <label for="verifyProductId">Product ID</label>
+        <input type="text" id="verifyProductId" required />
+      </div>
+      <div class="form-group">
+        <label for="verifyOtp">OTP</label>
+        <input type="text" id="verifyOtp" required />
+      </div>
+      <button type="submit">Verify Product</button>
+    </form>
+
+    <div id="verifyResult"></div>
+  </div>
 
   <script>
-    const contractABI = [
-      {
-        "anonymous": false,
-        "inputs": [
-          { "indexed": false, "internalType": "string", "name": "productId", "type": "string" },
-          { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
-          { "indexed": false, "internalType": "string", "name": "manufacturer", "type": "string" }
-        ],
-        "name": "ProductRegistered",
-        "type": "event"
-      },
-      {
-        "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" },
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "manufacturer", "type": "string" },
-          { "internalType": "uint256", "name": "mDate", "type": "uint256" }
-        ],
-        "name": "registerProduct",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          { "internalType": "string", "name": "productId", "type": "string" }
-        ],
-        "name": "verifyProduct",
-        "outputs": [
-          { "internalType": "bool", "name": "exists", "type": "bool" },
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "manufacturer", "type": "string" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
+    const contractAddress = '0x6d013425058e45d59e6285883f23c85e7996cf0f';
+    const abi = [
+      {"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"productId","type":"string"},{"indexed":false,"internalType":"string","name":"name","type":"string"},{"indexed":false,"internalType":"string","name":"manufacturer","type":"string"},{"indexed":false,"internalType":"string","name":"fileHash","type":"string"},{"indexed":false,"internalType":"string","name":"otp","type":"string"}],"name":"ProductRegistered","type":"event"},
+      {"inputs":[{"internalType":"string","name":"_productId","type":"string"},{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_manufacturer","type":"string"},{"internalType":"uint256","name":"_mDate","type":"uint256"},{"internalType":"string","name":"_fileHash","type":"string"},{"internalType":"string","name":"_otp","type":"string"}],"name":"registerProduct","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"string","name":"_productId","type":"string"},{"internalType":"string","name":"_otp","type":"string"}],"name":"verifyProduct","outputs":[{"internalType":"bool","name":"exists","type":"bool"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"manufacturer","type":"string"},{"internalType":"string","name":"fileHash","type":"string"}],"stateMutability":"view","type":"function"}
     ];
 
-    const contractAddress = "0xd5dd56afccfd71ebe8a8bdb800150fed4c93d8c1";
+    let web3;
+    let contract;
+    let account;
 
-    let web3, contract, userAccount, scanner, currentCameraId, flashOn = false;
-
-    document.getElementById("connectWalletBtn").addEventListener("click", async () => {
+    async function connectWallet() {
       if (window.ethereum) {
-        try {
-          web3 = new Web3(window.ethereum);
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          userAccount = accounts[0];
-          contract = new web3.eth.Contract(contractABI, contractAddress);
-          document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
-          document.getElementById("verify-btn").disabled = false;
-        } catch (err) {
-          alert("User denied wallet connection.");
-        }
+        web3 = new Web3(window.ethereum);
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await web3.eth.getAccounts();
+        account = accounts[0];
+        document.getElementById('wallet-address').innerText = `Connected: ${account}`;
+        contract = new web3.eth.Contract(abi, contractAddress);
       } else {
-        alert("Please install MetaMask.");
-      }
-    });
-
-    document.getElementById("registration-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const productId = document.getElementById('reg-productId').value;
-      const name = document.getElementById('reg-name').value;
-      const manufacturer = document.getElementById('reg-manufacturer').value;
-      const date = document.getElementById('reg-manufactureDate').value;
-      const timestamp = Math.floor(new Date(date).getTime() / 1000);
-      const resultDiv = document.getElementById("registration-result");
-      resultDiv.textContent = "";
-
-      try {
-        await contract.methods.registerProduct(productId, name, manufacturer, timestamp).send({ from: userAccount });
-        resultDiv.textContent = "✅ Product Registered!";
-        resultDiv.className = "success";
-        e.target.reset();
-      } catch (err) {
-        console.error(err);
-        resultDiv.textContent = "❌ Registration failed.";
-        resultDiv.className = "error";
-      }
-    });
-
-    document.getElementById("verify-btn").addEventListener("click", async () => {
-      const pid = document.getElementById("verify-productId").value.trim();
-      const resultDiv = document.getElementById("verification-result");
-      resultDiv.textContent = "";
-      resultDiv.className = "";
-
-      try {
-        const res = await contract.methods.verifyProduct(pid).call({ from: userAccount });
-        if (res[0]) {
-          resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
-          resultDiv.className = "success";
-        } else {
-          resultDiv.innerHTML = `❌ <strong>Fake or Unregistered Product!</strong>`;
-          resultDiv.className = "error";
-        }
-      } catch (err) {
-        resultDiv.textContent = "❌ Error verifying product.";
-        resultDiv.className = "error";
-      }
-    });
-
-    async function startScanner() {
-      scanner = new Html5Qrcode("qr-reader");
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length) {
-          const backCam = devices.find(cam => cam.label.toLowerCase().includes("back")) || devices[0];
-          currentCameraId = backCam.id;
-
-          await scanner.start(
-            { deviceId: { exact: currentCameraId } },
-            { fps: 10, qrbox: 250 },
-            async (decodedText) => {
-              document.getElementById("verify-productId").value = decodedText;
-              document.getElementById("qr-result").innerHTML = `📦 QR Detected: <strong>${decodedText}</strong>`;
-
-              try {
-                const res = await contract.methods.verifyProduct(decodedText).call({ from: userAccount });
-                const resultDiv = document.getElementById("verification-result");
-                if (res[0]) {
-                  resultDiv.innerHTML = `✅ <strong>Valid Product</strong><br><strong>Name:</strong> ${res[1]}<br><strong>Manufacturer:</strong> ${res[2]}`;
-                  resultDiv.className = "success";
-                } else {
-                  resultDiv.innerHTML = `❌ <strong>Fake or Unregistered Product!</strong>`;
-                  resultDiv.className = "error";
-                }
-              } catch (err) {
-                document.getElementById("verification-result").innerHTML = `❌ <strong>Error during verification</strong>`;
-                document.getElementById("verification-result").className = "error";
-              }
-            },
-            (error) => {
-              console.warn("QR Scan Error:", error);
-            }
-          );
-
-          const capabilities = await scanner.getRunningTrackCapabilities();
-          if (capabilities.torch) {
-            document.getElementById("flash-toggle").style.display = "block";
-          }
-        } else {
-          document.getElementById("qr-result").innerText = "❌ No camera found!";
-        }
-      } catch (err) {
-        console.error("Scanner start error:", err);
-        document.getElementById("qr-result").innerText = "❌ Unable to access camera.";
+        alert('MetaMask not detected!');
       }
     }
 
-    document.getElementById("flash-toggle").addEventListener("click", async () => {
-      if (scanner && currentCameraId) {
-        flashOn = !flashOn;
-        try {
-          await scanner.applyVideoConstraints({ advanced: [{ torch: flashOn }] });
-        } catch (err) {
-          alert("⚠ Flashlight not supported on this device.");
-        }
+    function generateOTP() {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const productId = document.getElementById('productId').value;
+      const name = document.getElementById('name').value;
+      const manufacturer = document.getElementById('manufacturer').value;
+      const otp = generateOTP();
+      const file = document.getElementById('file').files[0];
+      const reader = new FileReader();
+
+      reader.onload = async function () {
+        const fileHash = web3.utils.sha3(reader.result);
+        const mDate = Math.floor(Date.now() / 1000);
+
+        await contract.methods.registerProduct(productId, name, manufacturer, mDate, fileHash, otp)
+          .send({ from: account });
+
+        alert(`Product Registered with OTP: ${otp}`);
+      };
+
+      if (file) {
+        reader.readAsText(file);
       }
     });
 
-    window.onload = startScanner;
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('verifyProductId').value;
+      const otp = document.getElementById('verifyOtp').value;
+
+      const result = await contract.methods.verifyProduct(id, otp).call();
+      const resultDiv = document.getElementById('verifyResult');
+      if (result.exists) {
+        resultDiv.innerHTML = `<p><strong>Verified!</strong><br/>Name: ${result.name}<br/>Manufacturer: ${result.manufacturer}</p>`;
+      } else {
+        resultDiv.innerHTML = '<p style="color:red;">Verification failed.</p>';
+      }
+    });
+
+    const html5QrCode = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices.length) {
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            document.getElementById('productId').value = decodedText;
+            fetch(`https://api.barcodelookup.com/v3/products?barcode=${decodedText}&formatted=y&key=YOUR_API_KEY`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.products && data.products.length > 0) {
+                  document.getElementById('name').value = data.products[0].product_name;
+                  document.getElementById('manufacturer').value = data.products[0].manufacturer;
+                }
+              });
+            html5QrCode.stop();
+          },
+          error => {}
+        );
+      }
+    });
   </script>
 </body>
 </html>
