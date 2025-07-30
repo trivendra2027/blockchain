@@ -203,7 +203,8 @@
           document.getElementById("walletAddress").innerText = "Connected: " + userAccount;
           contract = new web3.eth.Contract(contractABI, contractAddress);
         } catch (error) {
-          alert("Wallet connection failed.");
+          alert("Wallet connection failed: " + error.message);
+          console.error(error);
         }
       } else {
         alert("MetaMask not found. Please install it.");
@@ -226,29 +227,38 @@
     }
 
     async function registerProduct() {
-      const id = document.getElementById("productId").value;
-      const name = document.getElementById("productName").value;
-      const manufacturer = document.getElementById("manufacturer").value;
-      const mfgDate = Math.floor(new Date(document.getElementById("mfgDate").value).getTime() / 1000);
+      const id = document.getElementById("productId").value.trim();
+      const name = document.getElementById("productName").value.trim();
+      const manufacturer = document.getElementById("manufacturer").value.trim();
+      const mfgDateStr = document.getElementById("mfgDate").value;
 
-      if (!id || !name || !manufacturer || !mfgDate) {
+      if (!id || !name || !manufacturer || !mfgDateStr) {
         alert("Please fill in all fields.");
         return;
       }
+
+      const mfgDate = Math.floor(new Date(mfgDateStr).getTime() / 1000);
+
+      if (isNaN(mfgDate) || mfgDate <= 0) {
+        alert("Invalid manufacture date.");
+        return;
+      }
+
+      console.log("Registering product with:", { id, name, manufacturer, mfgDate });
 
       try {
         await contract.methods.registerProduct(id, name, manufacturer, mfgDate).send({ from: userAccount });
         document.getElementById("result").innerText = "✅ Product registered successfully.";
         document.getElementById("result").className = "success";
       } catch (err) {
-        console.error(err);
-        document.getElementById("result").innerText = "❌ Registration failed.";
+        console.error("Registration error:", err);
+        document.getElementById("result").innerText = "❌ Registration failed: " + err.message;
         document.getElementById("result").className = "error";
       }
     }
 
     async function verifyProduct() {
-      const id = document.getElementById("verify-productId").value;
+      const id = document.getElementById("verify-productId").value.trim();
       if (!id) {
         alert("Enter a product ID.");
         return;
