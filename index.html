@@ -1,126 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Blockchain Product Registry</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #f2f2f2, #e0f7fa);
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to right, #74ebd5, #9face6);
-      color: #333;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: flex-start;
       min-height: 100vh;
+      padding-top: 20px;
     }
 
-    h1 {
-      margin-top: 30px;
-      color: #222;
+    h2 {
+      margin-bottom: 10px;
+      color: #333;
     }
 
-    .container {
-      background: #fff;
-      border-radius: 16px;
-      padding: 30px;
-      margin: 20px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-      max-width: 500px;
+    #qr-reader {
+      width: 300px;
+      margin-bottom: 20px;
+    }
+
+    form, #verifyForm {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       width: 90%;
+      max-width: 400px;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
 
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      font-size: 16px;
-      border-radius: 8px;
+    input[type="text"], input[type="date"], input[type="file"] {
+      padding: 10px;
+      font-size: 1em;
       border: 1px solid #ccc;
-    }
-
-    input:disabled {
-      background: #f0f0f0;
+      border-radius: 8px;
     }
 
     button {
-      background-color: #4CAF50;
+      padding: 12px;
+      background-color: #00796b;
       color: white;
+      font-size: 1em;
       border: none;
+      border-radius: 8px;
       cursor: pointer;
-      transition: 0.3s;
     }
 
     button:hover {
-      background-color: #45a049;
-    }
-
-    #connectBtn {
-      margin-top: 20px;
-      background-color: #1e90ff;
-    }
-
-    #connectBtn:hover {
-      background-color: #1c86ee;
-    }
-
-    .otp-btn {
-      background-color: #ffa500;
-      width: auto;
-      margin-left: 10px;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .row input {
-      flex: 1;
+      background-color: #004d40;
     }
 
     .status {
-      margin-top: 10px;
       font-weight: bold;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .connect-wallet {
+      background: #ff5722;
+      margin-bottom: 20px;
     }
   </style>
 </head>
+
 <body>
-  <h1>Product Registry DApp</h1>
-  <button id="connectBtn">Connect Wallet</button>
+  <button class="connect-wallet" onclick="connectWallet()">🔗 Connect Wallet</button>
+  <div id="qr-reader"></div>
 
-  <div class="container">
-    <h2>Register Product</h2>
-    <input type="text" id="productId" placeholder="Product ID" />
-    <input type="text" id="name" placeholder="Product Name" />
-    <input type="text" id="manufacturer" placeholder="Manufacturer" />
-    <input type="date" id="mDate" />
-    <input type="file" id="file" />
-    <div class="row">
-      <input type="text" id="otp" placeholder="OTP" readonly />
-      <button class="otp-btn" onclick="generateOTP()">Generate OTP</button>
-    </div>
-    <button onclick="registerProduct()">Register Product</button>
-    <div id="registerStatus" class="status"></div>
-  </div>
+  <h2>Register Product</h2>
+  <form onsubmit="event.preventDefault(); registerProduct();">
+    <input type="text" id="productId" placeholder="Product ID" required />
+    <input type="text" id="name" placeholder="Product Name" required />
+    <input type="text" id="manufacturer" placeholder="Manufacturer" required />
+    <input type="date" id="mDate" required />
+    <input type="file" id="file" required />
+    <input type="text" id="otp" placeholder="OTP (6 digits)" maxlength="6" required />
+    <button type="button" onclick="generateOTP()">Generate OTP</button>
+    <button type="submit">Register Product</button>
+    <div class="status" id="registerStatus"></div>
+  </form>
 
-  <div class="container">
-    <h2>Verify Product</h2>
-    <input type="text" id="verifyId" placeholder="Product ID" />
-    <input type="text" id="verifyOtp" placeholder="OTP" />
-    <button onclick="verifyProduct()">Verify</button>
-    <div id="verifyResult" class="status"></div>
-  </div>
+  <h2>Verify Product</h2>
+  <form id="verifyForm" onsubmit="event.preventDefault(); verifyProduct();">
+    <input type="text" id="verifyId" placeholder="Enter Product ID" required />
+    <input type="text" id="verifyOtp" placeholder="Enter OTP" maxlength="6" required />
+    <button type="submit">Verify</button>
+    <div class="status" id="verifyStatus"></div>
+  </form>
 
   <script>
-    let web3;
-    let contract;
-    const contractAddress = "0x6d013425058e45d59e6285883f23c85e7996cf0f"; // Replace this
-    const contractABI = [
+    const contractAddress = "0x6d013425058e45d59e6285883f23c85e7996cf0f"; // your contract address
+    const contractABI = [[
 	{
 		"anonymous": false,
 		"inputs": [
@@ -284,36 +268,30 @@
 		"stateMutability": "view",
 		"type": "function"
 	}
-]; // Replace this
+]];
+    let contract;
 
     async function connectWallet() {
       if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
-        try {
-          await window.ethereum.request({ method: "eth_requestAccounts" });
-          contract = new web3.eth.Contract(contractABI, contractAddress);
-          document.getElementById("connectBtn").innerText = "Wallet Connected";
-          document.getElementById("connectBtn").disabled = true;
-        } catch (err) {
-          alert("User denied wallet connection.");
-        }
+        const web3 = new Web3(window.ethereum);
+        await window.ethereum.enable();
+        contract = new web3.eth.Contract(contractABI, contractAddress);
+        console.log("Wallet connected");
       } else {
-        alert("Please install MetaMask.");
+        alert("MetaMask not detected!");
       }
     }
 
-    document.getElementById("connectBtn").onclick = connectWallet;
-
     function generateOTP() {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = Math.floor(100000 + Math.random() * 900000);
       document.getElementById("otp").value = otp;
     }
 
     async function getFileHash(file) {
       const buffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       return hashHex;
     }
 
@@ -321,50 +299,69 @@
       const productId = document.getElementById("productId").value;
       const name = document.getElementById("name").value;
       const manufacturer = document.getElementById("manufacturer").value;
-      const mDate = document.getElementById("mDate").value;
+      const mDateInput = document.getElementById("mDate").value;
       const file = document.getElementById("file").files[0];
       const otp = document.getElementById("otp").value;
       const status = document.getElementById("registerStatus");
       status.textContent = "";
 
-      if (!productId || !name || !manufacturer || !mDate || !file || !otp) {
+      if (!productId || !name || !manufacturer || !mDateInput || !file || !otp) {
         alert("All fields are required.");
         return;
       }
 
+      const mDate = Math.floor(new Date(mDateInput).getTime() / 1000);
+
       try {
         const fileHash = await getFileHash(file);
-        const accounts = await web3.eth.getAccounts();
-        await contract.methods.registerProduct(productId, name, manufacturer, mDate, fileHash, otp)
-          .send({ from: accounts[0] });
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        await contract.methods.registerProduct(productId, name, manufacturer, mDate, fileHash, otp).send({ from: accounts[0] });
         status.textContent = "✅ Product Registered Successfully!";
       } catch (error) {
-        console.error(error);
+        console.error("Registration Error:", error);
         status.textContent = "❌ Registration failed. See console for details.";
       }
     }
 
     async function verifyProduct() {
-      const verifyId = document.getElementById("verifyId").value;
-      const verifyOtp = document.getElementById("verifyOtp").value;
-      const result = document.getElementById("verifyResult");
-      result.textContent = "";
-
-      if (!verifyId || !verifyOtp) {
-        alert("Please enter Product ID and OTP.");
-        return;
-      }
+      const productId = document.getElementById("verifyId").value;
+      const otp = document.getElementById("verifyOtp").value;
+      const status = document.getElementById("verifyStatus");
+      status.textContent = "";
 
       try {
-        const isValid = await contract.methods.verifyProduct(verifyId, verifyOtp).call();
-        result.textContent = isValid
-          ? "✅ Product is verified and authentic!"
-          : "❌ Invalid Product or OTP!";
+        const verified = await contract.methods.verifyProduct(productId, otp).call();
+        if (verified) {
+          status.textContent = "✅ Product Verified!";
+        } else {
+          status.textContent = "❌ Verification Failed!";
+        }
       } catch (error) {
-        console.error(error);
-        result.textContent = "❌ Verification failed. See console.";
+        console.error("Verification Error:", error);
+        status.textContent = "❌ Verification failed. See console for details.";
       }
     }
+
+    const qrReader = new Html5Qrcode("qr-reader");
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        qrReader.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          qrCodeMessage => {
+            document.getElementById("productId").value = qrCodeMessage;
+            document.getElementById("verifyId").value = qrCodeMessage;
+          },
+          error => {
+            // Ignore scan errors
+          }
+        );
+      }
+    });
   </script>
 </body>
+
 </html>
