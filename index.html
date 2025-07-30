@@ -2,138 +2,128 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Product Registry & Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
     body {
-      margin: 0;
-      background: #f4f6f9;
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
+      flex-direction: column;
       padding: 20px;
     }
-    h1 {
+
+    h2 {
+      margin-top: 20px;
       text-align: center;
-      margin-bottom: 20px;
-      color: #333;
     }
+
     .container {
-      background: white;
-      padding: 30px;
+      background: #fff;
+      padding: 25px;
       border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       max-width: 600px;
-      margin: auto;
+      width: 100%;
     }
-    .form-group {
-      margin-bottom: 15px;
-    }
+
     label {
       font-weight: bold;
+      margin-top: 15px;
       display: block;
-      margin-bottom: 5px;
     }
-    input[type="text"], input[type="file"], input[type="number"] {
+
+    input, button, textarea {
       width: 100%;
       padding: 10px;
+      margin-top: 5px;
       border-radius: 6px;
       border: 1px solid #ccc;
     }
+
     button {
-      background-color: #007bff;
+      background-color: #4CAF50;
       color: white;
-      padding: 12px;
-      width: 100%;
       border: none;
-      border-radius: 6px;
       cursor: pointer;
-      font-size: 16px;
+      margin-top: 15px;
+      font-weight: bold;
     }
+
     button:hover {
-      background-color: #0056b3;
+      background-color: #45a049;
     }
+
     #wallet-address {
-      margin: 10px 0;
+      margin-top: 10px;
       text-align: center;
-      color: #444;
+      font-weight: bold;
     }
+
     #reader {
-      margin: 20px auto;
+      width: 100%;
+      margin-bottom: 20px;
     }
-    #result {
-      text-align: center;
-      margin: 20px 0;
+
+    .qr-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Product Registry & Verification</h1>
-
     <button onclick="connectWallet()">Connect Wallet</button>
-    <p id="wallet-address"></p>
+    <div id="wallet-address"></div>
 
-    <div id="reader" width="300"></div>
-    <div id="result"></div>
+    <h2>Register Product</h2>
+    <div class="qr-container">
+      <div id="reader"></div>
+    </div>
 
-    <form id="registerForm">
-      <div class="form-group">
-        <label for="productId">Product ID</label>
-        <input type="text" id="productId" name="productId" required readonly />
-      </div>
-      <div class="form-group">
-        <label for="name">Product Name</label>
-        <input type="text" id="name" name="name" required />
-      </div>
-      <div class="form-group">
-        <label for="manufacturer">Manufacturer</label>
-        <input type="text" id="manufacturer" name="manufacturer" required />
-      </div>
-      <div class="form-group">
-        <label for="file">Upload File</label>
-        <input type="file" id="file" name="file" />
-      </div>
-      <button type="submit">Register Product</button>
-    </form>
+    <label>Product ID</label>
+    <input type="text" id="productId" placeholder="Scan or enter product ID manually" />
 
-    <br />
+    <label>Product Name</label>
+    <input type="text" id="name" />
 
-    <form id="verifyForm">
-      <div class="form-group">
-        <label for="verifyProductId">Product ID</label>
-        <input type="text" id="verifyProductId" required />
-      </div>
-      <div class="form-group">
-        <label for="verifyOtp">OTP</label>
-        <input type="text" id="verifyOtp" required />
-      </div>
-      <button type="submit">Verify Product</button>
-    </form>
+    <label>Manufacturer</label>
+    <input type="text" id="manufacturer" />
 
-    <div id="verifyResult"></div>
+    <label>Manufacturing Date</label>
+    <input type="date" id="mDate" />
+
+    <label>File Upload</label>
+    <input type="file" id="file" />
+
+    <label>OTP</label>
+    <input type="text" id="otp" readonly />
+
+    <button onclick="generateOTP()">Generate OTP</button>
+    <button onclick="registerProduct()">Register Product</button>
+
+    <h2>Verify Product</h2>
+    <label>Product ID</label>
+    <input type="text" id="verifyId" />
+
+    <label>OTP</label>
+    <input type="text" id="verifyOtp" />
+
+    <button onclick="verifyProduct()">Verify</button>
+    <pre id="output"></pre>
   </div>
 
   <script>
-    const contractAddress = '0x6d013425058e45d59e6285883f23c85e7996cf0f';
-    const abi = [
-      {"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"productId","type":"string"},{"indexed":false,"internalType":"string","name":"name","type":"string"},{"indexed":false,"internalType":"string","name":"manufacturer","type":"string"},{"indexed":false,"internalType":"string","name":"fileHash","type":"string"},{"indexed":false,"internalType":"string","name":"otp","type":"string"}],"name":"ProductRegistered","type":"event"},
-      {"inputs":[{"internalType":"string","name":"_productId","type":"string"},{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_manufacturer","type":"string"},{"internalType":"uint256","name":"_mDate","type":"uint256"},{"internalType":"string","name":"_fileHash","type":"string"},{"internalType":"string","name":"_otp","type":"string"}],"name":"registerProduct","outputs":[],"stateMutability":"nonpayable","type":"function"},
-      {"inputs":[{"internalType":"string","name":"_productId","type":"string"},{"internalType":"string","name":"_otp","type":"string"}],"name":"verifyProduct","outputs":[{"internalType":"bool","name":"exists","type":"bool"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"manufacturer","type":"string"},{"internalType":"string","name":"fileHash","type":"string"}],"stateMutability":"view","type":"function"}
-    ];
+    const contractAddress = "YOUR_CONTRACT_ADDRESS";
+    const abi = [/* Paste your ABI here (you already gave it above) */];
 
-    let web3;
-    let contract;
-    let account;
+    let web3, contract, account;
+    let scannerEnabled = true;
 
     async function connectWallet() {
       if (window.ethereum) {
@@ -141,74 +131,76 @@
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         const accounts = await web3.eth.getAccounts();
         account = accounts[0];
-        document.getElementById('wallet-address').innerText = `Connected: ${account}`;
+        document.getElementById("wallet-address").innerText = `Connected: ${account}`;
         contract = new web3.eth.Contract(abi, contractAddress);
       } else {
-        alert('MetaMask not detected!');
+        alert("Install MetaMask.");
       }
     }
 
     function generateOTP() {
-      return Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      document.getElementById("otp").value = otp;
     }
 
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const productId = document.getElementById('productId').value;
-      const name = document.getElementById('name').value;
-      const manufacturer = document.getElementById('manufacturer').value;
-      const otp = generateOTP();
-      const file = document.getElementById('file').files[0];
+    async function registerProduct() {
+      const productId = document.getElementById("productId").value;
+      const name = document.getElementById("name").value;
+      const manufacturer = document.getElementById("manufacturer").value;
+      const mDate = Math.floor(new Date(document.getElementById("mDate").value).getTime() / 1000);
+      const otp = document.getElementById("otp").value;
+      const file = document.getElementById("file").files[0];
+
+      if (!file) return alert("Please upload a file.");
+
       const reader = new FileReader();
-
-      reader.onload = async function () {
+      reader.onloadend = async () => {
         const fileHash = web3.utils.sha3(reader.result);
-        const mDate = Math.floor(Date.now() / 1000);
 
-        await contract.methods.registerProduct(productId, name, manufacturer, mDate, fileHash, otp)
-          .send({ from: account });
-
-        alert(`Product Registered with OTP: ${otp}`);
+        try {
+          await contract.methods.registerProduct(productId, name, manufacturer, mDate, fileHash, otp)
+            .send({ from: account });
+          alert("Product registered successfully!");
+        } catch (e) {
+          console.error(e);
+          alert("Registration failed.");
+        }
       };
+      reader.readAsArrayBuffer(file);
+    }
 
-      if (file) {
-        reader.readAsText(file);
+    async function verifyProduct() {
+      const productId = document.getElementById("verifyId").value;
+      const otp = document.getElementById("verifyOtp").value;
+
+      try {
+        const result = await contract.methods.verifyProduct(productId, otp).call();
+        if (result.exists) {
+          document.getElementById("output").innerText =
+            `Name: ${result.name}\nManufacturer: ${result.manufacturer}\nFileHash: ${result.fileHash}`;
+        } else {
+          document.getElementById("output").innerText = "Product not found or OTP invalid.";
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById("output").innerText = "Verification failed.";
       }
-    });
-
-    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = document.getElementById('verifyProductId').value;
-      const otp = document.getElementById('verifyOtp').value;
-
-      const result = await contract.methods.verifyProduct(id, otp).call();
-      const resultDiv = document.getElementById('verifyResult');
-      if (result.exists) {
-        resultDiv.innerHTML = `<p><strong>Verified!</strong><br/>Name: ${result.name}<br/>Manufacturer: ${result.manufacturer}</p>`;
-      } else {
-        resultDiv.innerHTML = '<p style="color:red;">Verification failed.</p>';
-      }
-    });
+    }
 
     const html5QrCode = new Html5Qrcode("reader");
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices.length) {
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
         html5QrCode.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
-          (decodedText) => {
-            document.getElementById('productId').value = decodedText;
-            fetch(`https://api.barcodelookup.com/v3/products?barcode=${decodedText}&formatted=y&key=YOUR_API_KEY`)
-              .then(res => res.json())
-              .then(data => {
-                if (data.products && data.products.length > 0) {
-                  document.getElementById('name').value = data.products[0].product_name;
-                  document.getElementById('manufacturer').value = data.products[0].manufacturer;
-                }
-              });
-            html5QrCode.stop();
+          qrCodeMessage => {
+            if (scannerEnabled) {
+              document.getElementById("productId").value = qrCodeMessage;
+              scannerEnabled = false; // Disable auto-overwrite
+              setTimeout(() => scannerEnabled = true, 3000); // Re-enable after delay
+            }
           },
-          error => {}
+          error => { }
         );
       }
     });
