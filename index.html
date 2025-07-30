@@ -3,137 +3,124 @@
 <head>
   <meta charset="UTF-8" />
   <title>Blockchain Product Registry</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
       margin: 0;
+      padding: 0;
       font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to right, #6a11cb, #2575fc);
-      color: #fff;
+      background: linear-gradient(to right, #74ebd5, #9face6);
+      color: #333;
       display: flex;
-      justify-content: center;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
       min-height: 100vh;
-      padding: 30px;
+    }
+
+    h1 {
+      margin-top: 30px;
+      color: #222;
     }
 
     .container {
-      background-color: rgba(0, 0, 0, 0.6);
-      padding: 25px 30px;
-      border-radius: 15px;
-      max-width: 700px;
-      width: 100%;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #00e3ff;
-    }
-
-    label {
-      display: block;
-      margin: 10px 0 5px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px;
+      margin: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
     }
 
     input, button {
       width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
       font-size: 16px;
-      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    input:disabled {
+      background: #f0f0f0;
     }
 
     button {
-      background-color: #00e3ff;
-      color: #000;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
       cursor: pointer;
-      transition: 0.3s ease;
+      transition: 0.3s;
     }
 
     button:hover {
-      background-color: #00bcd4;
+      background-color: #45a049;
     }
 
-    #reader {
-      margin: 15px 0;
-      width: 100%;
+    #connectBtn {
+      margin-top: 20px;
+      background-color: #1e90ff;
+    }
+
+    #connectBtn:hover {
+      background-color: #1c86ee;
+    }
+
+    .otp-btn {
+      background-color: #ffa500;
+      width: auto;
+      margin-left: 10px;
     }
 
     .row {
       display: flex;
-      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .row button {
+    .row input {
       flex: 1;
     }
 
-    #walletAddress {
-      text-align: center;
-      font-size: 14px;
-      margin-bottom: 15px;
-      color: #bde4ff;
+    .status {
+      margin-top: 10px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
+  <h1>Product Registry DApp</h1>
+  <button id="connectBtn">Connect Wallet</button>
+
   <div class="container">
-    <h2>Blockchain Product Registry</h2>
-    <div id="walletAddress">Wallet not connected</div>
-    <button onclick="connectWallet()">Connect Wallet</button>
+    <h2>Register Product</h2>
+    <input type="text" id="productId" placeholder="Product ID" />
+    <input type="text" id="name" placeholder="Product Name" />
+    <input type="text" id="manufacturer" placeholder="Manufacturer" />
+    <input type="date" id="mDate" />
+    <input type="file" id="file" />
+    <div class="row">
+      <input type="text" id="otp" placeholder="OTP" readonly />
+      <button class="otp-btn" onclick="generateOTP()">Generate OTP</button>
+    </div>
+    <button onclick="registerProduct()">Register Product</button>
+    <div id="registerStatus" class="status"></div>
+  </div>
 
-    <h3>Scan Product</h3>
-    <div id="reader"></div>
-
-    <form id="registerForm" onsubmit="registerProduct(); return false;">
-      <label for="productId">Product ID (or Scan)</label>
-      <input type="text" id="productId" required />
-
-      <label for="productName">Product Name</label>
-      <input type="text" id="productName" required />
-
-      <label for="manufacturer">Manufacturer</label>
-      <input type="text" id="manufacturer" required />
-
-      <label for="mDate">Manufacture Date</label>
-      <input type="date" id="mDate" required />
-
-      <label for="fileUpload">Upload Product File</label>
-      <input type="file" id="fileUpload" required />
-
-      <label for="otp">OTP</label>
-      <div class="row">
-        <input type="text" id="otp" readonly />
-        <button type="button" onclick="generateOTP()">Generate OTP</button>
-      </div>
-
-      <button type="submit">Register Product</button>
-    </form>
-
-    <hr />
-
-    <form id="verifyForm" onsubmit="verifyProduct(); return false;">
-      <h3>Verify Product</h3>
-      <label for="verifyProductId">Product ID</label>
-      <input type="text" id="verifyProductId" required />
-
-      <label for="verifyOtp">OTP</label>
-      <input type="text" id="verifyOtp" required />
-
-      <button type="submit">Verify</button>
-    </form>
-
-    <div id="verifyResult"></div>
+  <div class="container">
+    <h2>Verify Product</h2>
+    <input type="text" id="verifyId" placeholder="Product ID" />
+    <input type="text" id="verifyOtp" placeholder="OTP" />
+    <button onclick="verifyProduct()">Verify</button>
+    <div id="verifyResult" class="status"></div>
   </div>
 
   <script>
-    const contractAddress = "0x6d013425058e45d59e6285883f23c85e7996cf0f";
-    const abi = [[
+    let web3;
+    let contract;
+    const contractAddress = "0x6d013425058e45d59e6285883f23c85e7996cf0f"; // Replace this
+    const contractABI = [
 	{
 		"anonymous": false,
 		"inputs": [
@@ -297,71 +284,85 @@
 		"stateMutability": "view",
 		"type": "function"
 	}
-]]; // Your ABI here as in the previous part
-
-    let web3, contract, userAccount;
+]; // Replace this
 
     async function connectWallet() {
       if (window.ethereum) {
         web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const accounts = await web3.eth.getAccounts();
-        userAccount = accounts[0];
-        document.getElementById("walletAddress").innerText = "Wallet: " + userAccount;
-        contract = new web3.eth.Contract(abi, contractAddress);
+        try {
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          contract = new web3.eth.Contract(contractABI, contractAddress);
+          document.getElementById("connectBtn").innerText = "Wallet Connected";
+          document.getElementById("connectBtn").disabled = true;
+        } catch (err) {
+          alert("User denied wallet connection.");
+        }
       } else {
-        alert("MetaMask not detected");
+        alert("Please install MetaMask.");
       }
     }
+
+    document.getElementById("connectBtn").onclick = connectWallet;
 
     function generateOTP() {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       document.getElementById("otp").value = otp;
     }
 
+    async function getFileHash(file) {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      return hashHex;
+    }
+
     async function registerProduct() {
       const productId = document.getElementById("productId").value;
-      const name = document.getElementById("productName").value;
+      const name = document.getElementById("name").value;
       const manufacturer = document.getElementById("manufacturer").value;
-      const mDate = Math.floor(new Date(document.getElementById("mDate").value).getTime() / 1000);
+      const mDate = document.getElementById("mDate").value;
+      const file = document.getElementById("file").files[0];
       const otp = document.getElementById("otp").value;
-      const file = document.getElementById("fileUpload").files[0];
+      const status = document.getElementById("registerStatus");
+      status.textContent = "";
 
-      if (!file) return alert("Please upload a file.");
+      if (!productId || !name || !manufacturer || !mDate || !file || !otp) {
+        alert("All fields are required.");
+        return;
+      }
 
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const fileHash = web3.utils.sha3(reader.result);
-
-        try {
-          await contract.methods
-            .registerProduct(productId, name, manufacturer, mDate, fileHash, otp)
-            .send({ from: userAccount });
-
-          alert("Product Registered!");
-        } catch (err) {
-          console.error("Registration error:", err);
-          alert("Registration failed. See console for details.");
-        }
-      };
-      reader.readAsText(file);
+      try {
+        const fileHash = await getFileHash(file);
+        const accounts = await web3.eth.getAccounts();
+        await contract.methods.registerProduct(productId, name, manufacturer, mDate, fileHash, otp)
+          .send({ from: accounts[0] });
+        status.textContent = "✅ Product Registered Successfully!";
+      } catch (error) {
+        console.error(error);
+        status.textContent = "❌ Registration failed. See console for details.";
+      }
     }
 
     async function verifyProduct() {
-      const productId = document.getElementById("verifyProductId").value;
-      const otp = document.getElementById("verifyOtp").value;
+      const verifyId = document.getElementById("verifyId").value;
+      const verifyOtp = document.getElementById("verifyOtp").value;
+      const result = document.getElementById("verifyResult");
+      result.textContent = "";
+
+      if (!verifyId || !verifyOtp) {
+        alert("Please enter Product ID and OTP.");
+        return;
+      }
 
       try {
-        const result = await contract.methods.verifyProduct(productId, otp).call();
-
-        if (result.exists) {
-          document.getElementById("verifyResult").innerHTML = `✅ Verified!<br>Name: ${result.name}<br>Manufacturer: ${result.manufacturer}<br>File Hash: ${result.fileHash}`;
-        } else {
-          document.getElementById("verifyResult").innerHTML = "❌ Product Not Found or OTP Invalid.";
-        }
-      } catch (err) {
-        console.error("Verification error:", err);
-        alert("Verification failed. See console for details.");
+        const isValid = await contract.methods.verifyProduct(verifyId, verifyOtp).call();
+        result.textContent = isValid
+          ? "✅ Product is verified and authentic!"
+          : "❌ Invalid Product or OTP!";
+      } catch (error) {
+        console.error(error);
+        result.textContent = "❌ Verification failed. See console.";
       }
     }
   </script>
