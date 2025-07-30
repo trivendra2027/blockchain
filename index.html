@@ -1,4 +1,78 @@
-[
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Blockchain Product Registry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #fff;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    button, input {
+      margin: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    input[type="file"] {
+      background-color: #fff;
+      color: #000;
+    }
+    .container {
+      background-color: rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 600px;
+    }
+    #reader {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Blockchain Product Registry</h1>
+  <button onclick="connectWallet()">Connect Wallet</button>
+
+  <div class="container">
+    <h2>Register Product</h2>
+    <div id="reader"></div>
+    <input type="text" id="productId" placeholder="Product ID" />
+    <input type="text" id="otp" placeholder="OTP (auto-filled)" readonly />
+    <input type="file" id="fileInput" />
+    <button onclick="generateOTP()">Generate OTP</button>
+    <button onclick="registerProduct()">Register Product</button>
+
+    <h2>Verify Product</h2>
+    <input type="text" id="verifyProductId" placeholder="Product ID" />
+    <input type="text" id="verifyOtp" placeholder="OTP" />
+    <button onclick="verifyProduct()">Verify Product</button>
+    <p id="verifyResult"></p>
+  </div>
+
+  <script>
+    let web3;
+    let contract;
+    const contractAddress = "0xcf793e230f11ce3042aeadd1ca72e86c1dfd533e";
+    const abi = [
+      [
 	{
 		"anonymous": false,
 		"inputs": [
@@ -157,3 +231,73 @@
 		"type": "function"
 	}
 ]
+    ];
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        contract = new web3.eth.Contract(abi, contractAddress);
+        alert("Wallet Connected");
+      } else {
+        alert("Please install MetaMask.");
+      }
+    }
+
+    function generateOTP() {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      document.getElementById("otp").value = otp;
+    }
+
+    async function registerProduct() {
+      const productId = document.getElementById("productId").value;
+      const otp = document.getElementById("otp").value;
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      const fileHash = file ? btoa(file.name + Date.now()) : "no_file";
+
+      try {
+        const accounts = await web3.eth.getAccounts();
+        await contract.methods.registerProduct(productId, otp, fileHash).send({ from: accounts[0] });
+        alert("Product Registered Successfully!");
+      } catch (error) {
+        console.error("Registration failed:", error);
+        alert("❌ Registration Failed. Check console.");
+      }
+    }
+
+    async function verifyProduct() {
+      const productId = document.getElementById("verifyProductId").value;
+      const otp = document.getElementById("verifyOtp").value;
+
+      try {
+        const result = await contract.methods.verifyProduct(productId, otp).call();
+        document.getElementById("verifyResult").innerText = result ? "✅ Product is Authentic!" : "❌ Verification Failed!";
+      } catch (error) {
+        console.error("Verification failed:", error);
+        document.getElementById("verifyResult").innerText = "❌ Error during verification.";
+      }
+    }
+
+    const qrScanner = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        qrScanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          qrCodeMessage => {
+            document.getElementById("productId").value = qrCodeMessage;
+            qrScanner.stop();
+          },
+          errorMessage => {
+            console.warn("QR Code scan error:", errorMessage);
+          }
+        );
+      }
+    });
+  </script>
+</body>
+</html>
